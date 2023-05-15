@@ -9,7 +9,15 @@ It then checks once per second if user activity has resumed, and once it is, pau
 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened therefore a running X server is required.
 Wayland is not currently supported.
 
-Usage:
+## Compiling
+
+Make sure you have `gcc` and `make` installed. Run `make release`. This should produce a binary file `runwhenidle` in the project directory.
+
+If you want to install it system-wide, run `sudo cp ./runwhenidle /usr/bin`. 
+
+I will package this for popular distros in case there is demand.
+
+## Usage
 
     runwhenidle [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] shell_command_to_run
 
