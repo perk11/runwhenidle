@@ -1,3 +1,5 @@
+# runwhenidle
+
 runwhenidle is a Linux utility that can be used to run a computationally or IO-intensive program when user is not
 in front of the computer, similar to a screensaver, often without requiring adaptation from the program being ran.
 
