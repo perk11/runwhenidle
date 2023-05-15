@@ -6,8 +6,6 @@
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
 
-
-// Function to pause the command
 void pause_command(pid_t pid) {
     printf("Pausing command...\n");
     if (kill(pid, SIGTSTP) == -1) {
@@ -16,7 +14,6 @@ void pause_command(pid_t pid) {
     }
 }
 
-// Function to resume the command
 void resume_command(pid_t pid) {
     printf("Resuming command...\n");
     if (kill(pid, SIGCONT) == -1) {
@@ -32,8 +29,8 @@ int main(int argc, char *argv[]) {
 
     // Define command line options
     struct option long_options[] = {
-        {"timeout", required_argument, NULL, 't'},
-        {NULL, 0, NULL, 0}
+            {"timeout", required_argument, NULL, 't'},
+            {NULL, 0,                      NULL, 0}
     };
 
     // Parse command line options
@@ -69,11 +66,11 @@ int main(int argc, char *argv[]) {
 
     Display *dpy = XOpenDisplay(NULL);
     if (!dpy) {
-        printf("Couldn't open an X11 display\n");
-        return (1);
+        printf("Couldn't open an X11 display!\n");
+        return 1;
     }
-    XScreenSaverInfo *info = XScreenSaverAllocInfo();
 
+    XScreenSaverInfo *info = XScreenSaverAllocInfo();
     int polling_interval_seconds = 1;
     int sleep_time_seconds = polling_interval_seconds;
     int command_paused = 0;
@@ -86,7 +83,7 @@ int main(int argc, char *argv[]) {
             // User is inactive
             if (command_paused) {
                 sleep_time_seconds = polling_interval_seconds; //reset to default value
-                fprintf(stderr,"Idle time: %lums\n", info->idle);
+                fprintf(stderr, "Idle time: %lums\n", info->idle);
 
                 resume_command(pid);
                 command_paused = 0;
