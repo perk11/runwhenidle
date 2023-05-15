@@ -28,7 +28,7 @@ void resume_command(pid_t pid) {
 int main(int argc, char *argv[]) {
     const char *shell_command_to_run = NULL;
     pid_t pid;
-    int userIdleTimeoutMs = 300000;
+    int user_idle_timeout_ms = 300000;
 
     // Define command line options
     struct option long_options[] = {
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     while ((option = getopt_long(argc, argv, "t:", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
-                userIdleTimeoutMs = atoi(optarg);
+                user_idle_timeout_ms = atoi(optarg);
                 break;
             default:
                 printf("Usage: %s [--timeout timeout] shell_command_to_run\n", argv[0]);
@@ -67,9 +67,6 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    // Flag to track the command status
-    int command_paused = 0;
-
     Display *dpy = XOpenDisplay(NULL);
     if (!dpy) {
         printf("Couldn't open an X11 display\n");
@@ -77,17 +74,18 @@ int main(int argc, char *argv[]) {
     }
     XScreenSaverInfo *info = XScreenSaverAllocInfo();
 
-    int pollingInterval = 1;
-    int sleepTimeSeconds = pollingInterval;
+    int polling_interval_seconds = 1;
+    int sleep_time_seconds = polling_interval_seconds;
+    int command_paused = 0;
     // Monitor user activity
     while (1) {
-        sleep(sleepTimeSeconds);
+        sleep(sleep_time_seconds);
         XScreenSaverQueryInfo(dpy, DefaultRootWindow(dpy), info);
 
-        if (info->idle > userIdleTimeoutMs) {
+        if (info->idle > user_idle_timeout_ms) {
             // User is inactive
             if (command_paused) {
-                sleepTimeSeconds = pollingInterval; //reset to default value
+                sleep_time_seconds = polling_interval_seconds; //reset to default value
                 fprintf(stderr,"Idle time: %lums\n", info->idle);
 
                 resume_command(pid);
@@ -101,22 +99,18 @@ int main(int argc, char *argv[]) {
                 command_paused = 1;
             }
             //TODO: this doesn't account for the time it took to pause the command
-            sleepTimeSeconds = ((userIdleTimeoutMs - info->idle) / 1000) - 1;
-            if (sleepTimeSeconds < 1) {
-                sleepTimeSeconds = 1;
+            sleep_time_seconds = ((user_idle_timeout_ms - info->idle) / 1000) - 1;
+            if (sleep_time_seconds < 1) {
+                sleep_time_seconds = 1;
             }
-            fprintf(stderr, "User is active, we will check again in %u seconds\n", sleepTimeSeconds);
+            fprintf(stderr, "User is active, we will check again in %u seconds\n", sleep_time_seconds);
         }
 
         // Check if the command has finished
         int status;
         if (waitpid(pid, &status, WNOHANG) == pid && WIFEXITED(status)) {
             fprintf(stderr, "Command has finished\n");
-            break;
+            return status;
         }
-
-
     }
-
-    return 0;
 }
