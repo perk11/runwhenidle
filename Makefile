@@ -3,7 +3,7 @@ LDLIBS=-lXss -lX11
 CC=gcc
 all: executable
 
-release: CCFLAGS += -O0
+release: CCFLAGS += -O3
 release: executable
 
 debug: CCFLAGS += -DDEBUG -ggdb
