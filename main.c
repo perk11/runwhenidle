@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     while ((option = getopt_long(argc, argv, "hvqt:", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
-                user_idle_timeout_ms = atoi(optarg);
+                user_idle_timeout_ms = atoi(optarg) * 1000;
                 break;
             case 'v':
                 verbose = 1;
