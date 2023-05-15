@@ -6,47 +6,72 @@
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
 
-void pause_command(pid_t pid) {
-    printf("Pausing command...\n");
+void pause_command(pid_t pid, int quiet) {
+    if (!quiet) {
+        printf("User activity is detected, pausing PID %i.\n", pid);
+    }
     if (kill(pid, SIGTSTP) == -1) {
-        printf("Pause didn't complete: command has already finished.\n");
+        fprintf(stderr, "Pause didn't complete, command possibly exited.\n");
         exit(1);
     }
 }
 
-void resume_command(pid_t pid) {
-    printf("Resuming command...\n");
+void resume_command(pid_t pid, int quiet) {
+    if (!quiet) {
+        printf("Lack of user activity is detected, resuming PID %i.\n", pid);
+    }
     if (kill(pid, SIGCONT) == -1) {
-        printf("Resume didn't complete: command has already finished.\n");
+        fprintf(stderr, "Resume didn't complete: command has already finished.\n");
         exit(1);
     }
+}
+void print_usage(char* binary_name)
+{
+    printf("Usage: %s [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] shell_command_to_run\n", binary_name);
 }
 
 int main(int argc, char *argv[]) {
     const char *shell_command_to_run = NULL;
     pid_t pid;
     int user_idle_timeout_ms = 300000;
+    int verbose = 0;
+    int quiet = 0;
 
     // Define command line options
     struct option long_options[] = {
             {"timeout", required_argument, NULL, 't'},
+            {"verbose", no_argument, NULL, 'v'},
+            {"quiet", no_argument, NULL, 'q'},
+            {"help",    no_argument, NULL, 'h'},
             {NULL, 0,                      NULL, 0}
     };
 
     // Parse command line options
     int option;
-    while ((option = getopt_long(argc, argv, "t:", long_options, NULL)) != -1) {
+    while ((option = getopt_long(argc, argv, "htvq", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
                 user_idle_timeout_ms = atoi(optarg);
                 break;
+            case 'v':
+                verbose = 1;
+                break;
+            case 'q':
+                quiet = 1;
+                break;
+            case 'h':
             default:
-                printf("Usage: %s [--timeout timeout] shell_command_to_run\n", argv[0]);
+                print_usage(argv[0]);
                 return 1;
         }
     }
     if (optind >= argc) {
-        printf("Usage: %s [--timeout timeout] shell_command_to_run\n", argv[0]);
+        print_usage(argv[0]);
+        return 1;
+    }
+    if (quiet && verbose) {
+        printf("Incompatible options --quiet|-q and --verbose|-v used");
+        print_usage(argv[0]);
         return 1;
     }
 
@@ -66,7 +91,7 @@ int main(int argc, char *argv[]) {
 
     Display *dpy = XOpenDisplay(NULL);
     if (!dpy) {
-        printf("Couldn't open an X11 display!\n");
+        fprintf(stderr, "Couldn't open an X11 display!\n");
         return 1;
     }
 
@@ -83,16 +108,20 @@ int main(int argc, char *argv[]) {
             // User is inactive
             if (command_paused) {
                 sleep_time_seconds = polling_interval_seconds; //reset to default value
-                fprintf(stderr, "Idle time: %lums\n", info->idle);
+                if (verbose) {
+                    fprintf(stderr, "Idle time: %lums\n", info->idle);
+                }
 
-                resume_command(pid);
+                resume_command(pid, quiet);
                 command_paused = 0;
             }
         } else {
             // User is active
             if (!command_paused) {
-                fprintf(stderr, "Idle time: %lums\n", info->idle);
-                pause_command(pid);
+                if (verbose) {
+                    fprintf(stderr, "Idle time: %lums\n", info->idle);
+                }
+                pause_command(pid, quiet);
                 command_paused = 1;
             }
             //TODO: this doesn't account for the time it took to pause the command
@@ -100,13 +129,17 @@ int main(int argc, char *argv[]) {
             if (sleep_time_seconds < polling_interval_seconds) {
                 sleep_time_seconds = polling_interval_seconds;
             }
-            fprintf(stderr, "User is active, we will check again in %u seconds\n", sleep_time_seconds);
+            if (verbose) {
+                fprintf(stderr, "Polling every second is temporarily disabled due to user activity, next activity check scheduled in %u seconds\n", sleep_time_seconds);
+            }
         }
 
         // Check if the command has finished
         int status;
         if (waitpid(pid, &status, WNOHANG) == pid && WIFEXITED(status)) {
-            fprintf(stderr, "Command has finished\n");
+            if (verbose) {
+                fprintf(stderr, "Command has finished\n");
+            }
             return status;
         }
     }
