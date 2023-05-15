@@ -99,9 +99,9 @@ int main(int argc, char *argv[]) {
                 command_paused = 1;
             }
             //TODO: this doesn't account for the time it took to pause the command
-            sleep_time_seconds = ((user_idle_timeout_ms - info->idle) / 1000) - 1;
-            if (sleep_time_seconds < 1) {
-                sleep_time_seconds = 1;
+            sleep_time_seconds = ((user_idle_timeout_ms - info->idle) / 1000) - polling_interval_seconds;
+            if (sleep_time_seconds < polling_interval_seconds) {
+                sleep_time_seconds = polling_interval_seconds;
             }
             fprintf(stderr, "User is active, we will check again in %u seconds\n", sleep_time_seconds);
         }
