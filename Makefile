@@ -1,8 +1,16 @@
 TARGET_EXEC := runwhenidle
 LDLIBS=-lXss -lX11
-CFLAGS=-O2
 CC=gcc
-release:
-	$(CC) -o $(TARGET_EXEC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) main.c
+all: executable
+
+release: CCFLAGS += -O0
+release: executable
+
+debug: CCFLAGS += -DDEBUG -ggdb
+debug: executable
+
+executable:
+	$(CC) -o $(TARGET_EXEC) $(CCFLAGS) $(LDFLAGS) $(LDLIBS) main.c
+
 clean:
 	rm -f runwhenidle
