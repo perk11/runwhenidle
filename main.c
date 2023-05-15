@@ -136,11 +136,12 @@ int main(int argc, char *argv[]) {
 
         // Check if the command has finished
         int status;
-        if (waitpid(pid, &status, WNOHANG) == pid && WIFEXITED(status)) {
+        if (waitpid(pid, &status, WNOHANG+WUNTRACED) == pid && WIFEXITED(status)) {
+            int exit_code = WEXITSTATUS(status);
             if (verbose) {
-                fprintf(stderr, "Command has finished\n");
+                fprintf(stderr, "Command has finished with exit code %u\n", exit_code);
             }
-            return status;
+            return exit_code;
         }
     }
 }
