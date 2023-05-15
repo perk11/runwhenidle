@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 
     // Parse command line options
     int option;
-    while ((option = getopt_long(argc, argv, "htvq", long_options, NULL)) != -1) {
+    while ((option = getopt_long(argc, argv, "hvqt:", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
                 user_idle_timeout_ms = atoi(optarg);
