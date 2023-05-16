@@ -40,3 +40,11 @@ Output debug information to stderr.
     runwhenidle --timeout=300 -q "cat /dev/zero"
 
 Run the `cat /dev/zero` command and pause it while user is active. `-q` option makes sure runwhenidle doesn't output anything other than the output of `cat /dev/zero`. 
+
+
+### Building Ubuntu/Debian package:
+Make sure you have docker installed and run:
+
+    make debian-package
+
+The .deb file will be generated in `package-build/` directory.

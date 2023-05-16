@@ -22,3 +22,11 @@ install: release
 
 clean:
 	rm -f runwhenidle
+
+debian-package:
+	docker build --build-arg HOST_UID=`id -u` --tag runwhenidle-ubuntu2204-build distro-packages/ubuntu22.04
+	docker run --user build -v .:/opt/src/runwhenidle runwhenidle-ubuntu2204-build /opt/src/runwhenidle/distro-packages/ubuntu22.04/build.sh
+
+clean-debian-package:
+	rm -rf package-build
+	docker rmi -f runwhenidle-ubuntu2204-build
