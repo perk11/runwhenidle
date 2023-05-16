@@ -15,7 +15,7 @@ Wayland is not currently supported.
 
 Make sure you have `gcc`, `make` and `libxss-dev` installed. Run `make release`. This should produce a binary file `runwhenidle` in the project directory.
 
-If you want to install it system-wide, run `sudo cp ./runwhenidle /usr/bin`. 
+If you want to install it system-wide, run `sudo make install` or simply `sudo cp ./runwhenidle /usr/bin`. 
 
 I will package this for popular distros in case there is demand.
 
