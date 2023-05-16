@@ -75,6 +75,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    //Open display and initialize XScreensaverInfo for querying idle time
+    Display *dpy = XOpenDisplay(NULL);
+    if (!dpy) {
+        fprintf(stderr, "Couldn't open an X11 display!\n");
+        return 1;
+    }
+    XScreenSaverInfo *info = XScreenSaverAllocInfo();
+
     shell_command_to_run = argv[optind];
 
     // Fork a child process to run the command
@@ -89,13 +97,6 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    Display *dpy = XOpenDisplay(NULL);
-    if (!dpy) {
-        fprintf(stderr, "Couldn't open an X11 display!\n");
-        return 1;
-    }
-
-    XScreenSaverInfo *info = XScreenSaverAllocInfo();
     int polling_interval_seconds = 1;
     int sleep_time_seconds = polling_interval_seconds;
     int command_paused = 0;
