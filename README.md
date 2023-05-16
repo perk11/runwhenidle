@@ -11,13 +11,17 @@ It then checks once per second if user activity has resumed, and once it is, pau
 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened therefore a running X server is required.
 Wayland is not currently supported.
 
+## Installation
+
+**Ubuntu and Debian**: Download the deb file attached to the [latest release](https://github.com/perk11/runwhenidle/releases/latest).
+
+Other Distros: You will need to compile runwhenidle yourself. AUR package is planned.
+
 ## Compiling
 
 Make sure you have `gcc`, `make` and `libxss-dev` installed. Run `make release`. This should produce a binary file `runwhenidle` in the project directory.
 
 If you want to install it system-wide, run `sudo make install` or simply `sudo cp ./runwhenidle /usr/bin`. 
-
-I will package this for popular distros in case there is demand.
 
 ## Usage
 
