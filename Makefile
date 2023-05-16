@@ -10,7 +10,7 @@ debug: CCFLAGS += -DDEBUG -ggdb
 debug: executable
 
 executable:
-	$(CC) -o $(TARGET_EXEC) $(CCFLAGS) $(LDFLAGS) $(LDLIBS) main.c
+	$(CC) main.c -o $(TARGET_EXEC) $(CCFLAGS) $(LDFLAGS) $(LDLIBS)
 
 clean:
 	rm -f runwhenidle
