@@ -4,6 +4,8 @@ CC=gcc
 ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
+SOURCES = sleep_utils.c main.c
+OBJECTS = $(SOURCES:.c=.o)
 
 all: executable
 
@@ -13,15 +15,18 @@ release: executable
 debug: CCFLAGS += -DDEBUG -ggdb
 debug: executable
 
-executable:
-	$(CC) main.c -o $(TARGET_EXEC) $(CCFLAGS) $(LDFLAGS) $(LDLIBS)
+%.o: %.c
+	$(CC) $(CCFLAGS) -c $< -o $@ $(LDFLAGS) $(LDLIBS)
+
+executable: $(OBJECTS)
+	$(CC) $(CCFLAGS) $(OBJECTS) -o $(TARGET_EXEC) $(LDFLAGS) $(LDLIBS)
 
 install: release
 	install -d $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 $(TARGET_EXEC) $(DESTDIR)$(PREFIX)/bin/
 
 clean:
-	rm -f runwhenidle
+	rm -f $(OBJECTS) $(TARGET_EXEC)
 
 debian-package:
 	docker build --build-arg HOST_UID=`id -u` --tag runwhenidle-ubuntu2204-build distro-packages/ubuntu22.04

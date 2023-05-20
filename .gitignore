@@ -1,2 +1,3 @@
 runwhenidle
 package-build/
+*.o

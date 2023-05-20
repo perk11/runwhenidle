@@ -7,6 +7,8 @@
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
 
+#include "sleep_utils.h"
+
 int verbose;
 int quiet;
 
@@ -68,6 +70,17 @@ pid_t run_shell_command(const char *shell_command_to_run, pid_t pid) {
     return pid;
 }
 
+void exit_if_pid_has_finished(pid_t pid) {
+    int status;
+    if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
+        int exit_code = WEXITSTATUS(status);
+        if (verbose) {
+            fprintf(stderr, "PID %i has finished with exit code %u\n", pid, exit_code);
+        }
+        exit(exit_code);
+    }
+}
+
 int main(int argc, char *argv[]) {
     pid_t pid;
     int user_idle_timeout_ms = 300000;
@@ -120,13 +133,22 @@ int main(int argc, char *argv[]) {
 
     pid = run_shell_command(argv[optind], pid);
 
+    // Let command run for 300ms to give it a chance to error-out or provide initial output.
+    // 300ms is chosen to avoid giving user a noticeable delay while giving most quick commands a chance to finish.
+    sleep_for_milliseconds(300);
+
     int polling_interval_seconds = 1;
     int sleep_time_seconds = polling_interval_seconds;
     int command_paused = 0;
+
     // Monitor user activity
     while (1) {
-        sleep(sleep_time_seconds);
         XScreenSaverQueryInfo(dpy, DefaultRootWindow(dpy), info);
+
+        // Checking this after querying the screensaver timer so that the command is still running while
+        // we're querying the screensaver and has a chance to do some work and finish,
+        // but before potentially pausing the command to avoid trying to pause it if it completed.
+        exit_if_pid_has_finished(pid);
 
         if (info->idle > user_idle_timeout_ms) {
             // User is inactive
@@ -159,15 +181,6 @@ int main(int argc, char *argv[]) {
                         sleep_time_seconds);
             }
         }
-
-        // Check if the command has finished
-        int status;
-        if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
-            int exit_code = WEXITSTATUS(status);
-            if (verbose) {
-                fprintf(stderr, "Command has finished with exit code %u\n", exit_code);
-            }
-            return exit_code;
-        }
+        sleep(sleep_time_seconds);
     }
 }
