@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
         // but before potentially pausing the command to avoid trying to pause it if it completed.
         exit_if_pid_has_finished(pid);
 
-        if (info->idle > user_idle_timeout_ms) {
+        if (info->idle >= user_idle_timeout_ms) {
             // User is inactive
             if (command_paused) {
                 sleep_time_ms = polling_interval_ms; //reset to default value
