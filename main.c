@@ -12,8 +12,8 @@
 int verbose;
 int quiet;
 
-void handle_kill_error(char* signal_name, pid_t pid) {
-    const char* reason;
+void handle_kill_error(char *signal_name, pid_t pid) {
+    const char *reason;
     if (errno == EPERM) {
         reason = "Operation not permitted";
     } else if (errno == EINVAL) {
@@ -65,7 +65,7 @@ pid_t run_shell_command(const char *shell_command_to_run, pid_t pid) {
         exit(1);
     }
     if (!quiet) {
-        printf("Started \"%s\" with PID %i.\n",shell_command_to_run, pid);
+        printf("Started \"%s\" with PID %i.\n", shell_command_to_run, pid);
     }
     return pid;
 }
