@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
+
 int verbose;
 int quiet;
 
@@ -27,9 +28,10 @@ void resume_command(pid_t pid) {
         exit(1);
     }
 }
-void print_usage(char* binary_name)
-{
-    printf("Usage: %s [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] shell_command_to_run\n", binary_name);
+
+void print_usage(char *binary_name) {
+    printf("Usage: %s [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] shell_command_to_run\n",
+           binary_name);
 }
 
 int main(int argc, char *argv[]) {
@@ -40,10 +42,10 @@ int main(int argc, char *argv[]) {
     // Define command line options
     struct option long_options[] = {
             {"timeout", required_argument, NULL, 't'},
-            {"verbose", no_argument, NULL, 'v'},
-            {"quiet", no_argument, NULL, 'q'},
-            {"help",    no_argument, NULL, 'h'},
-            {NULL, 0,                      NULL, 0}
+            {"verbose", no_argument,       NULL, 'v'},
+            {"quiet",   no_argument,       NULL, 'q'},
+            {"help",    no_argument,       NULL, 'h'},
+            {NULL,      0,                 NULL, 0}
     };
 
     // Parse command line options
@@ -131,13 +133,15 @@ int main(int argc, char *argv[]) {
                 sleep_time_seconds = polling_interval_seconds;
             }
             if (verbose) {
-                fprintf(stderr, "Polling every second is temporarily disabled due to user activity, next activity check scheduled in %u seconds\n", sleep_time_seconds);
+                fprintf(stderr,
+                        "Polling every second is temporarily disabled due to user activity, next activity check scheduled in %u seconds\n",
+                        sleep_time_seconds);
             }
         }
 
         // Check if the command has finished
         int status;
-        if (waitpid(pid, &status, WNOHANG+WUNTRACED) == pid && WIFEXITED(status)) {
+        if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
             int exit_code = WEXITSTATUS(status);
             if (verbose) {
                 fprintf(stderr, "Command has finished with exit code %u\n", exit_code);
