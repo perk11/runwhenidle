@@ -22,12 +22,12 @@ void handle_kill_error(char *signal_name, pid_t pid) {
         reason = "No such process";
     }
 
-    printf("Failed to send %s signal to PID %i: %s.\n", signal_name, pid, reason);
+    printf("Failed to send %s signal to PID %i: %s\n", signal_name, pid, reason);
 }
 
 void pause_command(pid_t pid) {
     if (!quiet) {
-        printf("User activity is detected, pausing PID %i.\n", pid);
+        printf("User activity is detected, pausing PID %i\n", pid);
     }
     if (kill(pid, SIGTSTP) == -1) {
         handle_kill_error("SIGCONT", pid);
@@ -37,7 +37,7 @@ void pause_command(pid_t pid) {
 
 void resume_command(pid_t pid) {
     if (!quiet) {
-        printf("Lack of user activity is detected, resuming PID %i.\n", pid);
+        printf("Lack of user activity is detected, resuming PID %i\n", pid);
     }
     if (kill(pid, SIGCONT) == -1) {
         handle_kill_error("SIGCONT", pid);
@@ -65,7 +65,7 @@ pid_t run_shell_command(const char *shell_command_to_run, pid_t pid) {
         exit(1);
     }
     if (!quiet) {
-        printf("Started \"%s\" with PID %i.\n", shell_command_to_run, pid);
+        printf("Started \"%s\" with PID %i\n", shell_command_to_run, pid);
     }
     return pid;
 }
