@@ -85,7 +85,7 @@ void exit_if_pid_has_finished(pid_t pid) {
 
 int main(int argc, char *argv[]) {
     pid_t pid;
-    int user_idle_timeout_ms = 300000;
+    long unsigned user_idle_timeout_ms = 300000;
 
     // Define command line options
     struct option long_options[] = {
@@ -101,7 +101,15 @@ int main(int argc, char *argv[]) {
     while ((option = getopt_long(argc, argv, "hvqt:", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
-                user_idle_timeout_ms = atoi(optarg) * 1000;
+                const long TIMEOUT_MAX_SUPPORTED_VALUE = 100000000; //~3 years
+                const long TIMEOUT_MIN_SUPPORTED_VALUE = 1;
+                long timeout_arg_value = strtol(optarg, NULL, 10);
+                if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE || timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
+                    printf("Invalid timeout value: \"%s\". Range supported: %ld-%ld\n", optarg, TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
+                    print_usage(argv[0]);
+                    return 1;
+                }
+                user_idle_timeout_ms = timeout_arg_value * 1000;
                 break;
             case 'v':
                 verbose = 1;
@@ -139,8 +147,8 @@ int main(int argc, char *argv[]) {
     // 300ms is chosen to avoid giving user a noticeable delay while giving most quick commands a chance to finish.
     sleep_for_milliseconds(300);
 
-    int polling_interval_ms = 1000;
-    int sleep_time_ms = polling_interval_ms;
+    long long polling_interval_ms = 1000;
+    long long sleep_time_ms = polling_interval_ms;
     int command_paused = 0;
 
     // Monitor user activity
@@ -190,7 +198,7 @@ int main(int argc, char *argv[]) {
             }
             if (verbose) {
                 fprintf(stderr,
-                        "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %ums\n",
+                        "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %lums\n",
                         info->idle,
                         sleep_time_ms
                 );
