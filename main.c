@@ -137,8 +137,8 @@ int main(int argc, char *argv[]) {
     // 300ms is chosen to avoid giving user a noticeable delay while giving most quick commands a chance to finish.
     sleep_for_milliseconds(300);
 
-    int polling_interval_seconds = 1;
-    int sleep_time_seconds = polling_interval_seconds;
+    int polling_interval_ms = 1000;
+    int sleep_time_ms = polling_interval_ms;
     int command_paused = 0;
 
     // Monitor user activity
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
         if (info->idle > user_idle_timeout_ms) {
             // User is inactive
             if (command_paused) {
-                sleep_time_seconds = polling_interval_seconds; //reset to default value
+                sleep_time_ms = polling_interval_ms; //reset to default value
                 if (verbose) {
                     fprintf(stderr, "Idle time: %lums\n", info->idle);
                 }
@@ -171,16 +171,18 @@ int main(int argc, char *argv[]) {
                 command_paused = 1;
             }
             //TODO: this doesn't account for the time it took to pause the command
-            sleep_time_seconds = ((user_idle_timeout_ms - info->idle) / 1000) - polling_interval_seconds;
-            if (sleep_time_seconds < polling_interval_seconds) {
-                sleep_time_seconds = polling_interval_seconds;
+            sleep_time_ms = user_idle_timeout_ms - info->idle;
+            if (sleep_time_ms < polling_interval_ms) {
+                sleep_time_ms = polling_interval_ms;
             }
             if (verbose) {
                 fprintf(stderr,
-                        "Polling every second is temporarily disabled due to user activity, next activity check scheduled in %u seconds\n",
-                        sleep_time_seconds);
+                        "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %ums\n",
+                        info->idle,
+                        sleep_time_ms
+                );
             }
         }
-        sleep(sleep_time_seconds);
+        sleep_for_milliseconds(sleep_time_ms);
     }
 }
