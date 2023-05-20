@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 #include <sys/wait.h>
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
@@ -9,12 +10,25 @@
 int verbose;
 int quiet;
 
+void handle_kill_error(char* signal_name, pid_t pid) {
+    const char* reason;
+    if (errno == EPERM) {
+        reason = "Operation not permitted";
+    } else if (errno == EINVAL) {
+        reason = "Invalid signal number";
+    } else if (errno == ESRCH) {
+        reason = "No such process";
+    }
+
+    printf("Failed to send %s signal to PID %i: %s.\n", signal_name, pid, reason);
+}
+
 void pause_command(pid_t pid) {
     if (!quiet) {
         printf("User activity is detected, pausing PID %i.\n", pid);
     }
     if (kill(pid, SIGTSTP) == -1) {
-        fprintf(stderr, "Pause didn't complete, command possibly exited.\n");
+        handle_kill_error("SIGCONT", pid);
         exit(1);
     }
 }
@@ -24,7 +38,7 @@ void resume_command(pid_t pid) {
         printf("Lack of user activity is detected, resuming PID %i.\n", pid);
     }
     if (kill(pid, SIGCONT) == -1) {
-        fprintf(stderr, "Resume didn't complete: command has already finished.\n");
+        handle_kill_error("SIGCONT", pid);
         exit(1);
     }
 }
