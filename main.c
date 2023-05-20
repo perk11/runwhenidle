@@ -48,8 +48,27 @@ void print_usage(char *binary_name) {
            binary_name);
 }
 
+pid_t run_shell_command(const char *shell_command_to_run, pid_t pid) {
+    if (verbose) {
+        printf("Starting \"%s\"\n", shell_command_to_run);
+    }
+    pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        exit(1);
+    } else if (pid == 0) {
+        // Child process
+        execl("/bin/sh", "sh", "-c", shell_command_to_run, (char *) NULL);
+        perror("execl");
+        exit(1);
+    }
+    if (!quiet) {
+        printf("Started \"%s\" with PID %i.\n",shell_command_to_run, pid);
+    }
+    return pid;
+}
+
 int main(int argc, char *argv[]) {
-    const char *shell_command_to_run = NULL;
     pid_t pid;
     int user_idle_timeout_ms = 300000;
 
@@ -99,19 +118,7 @@ int main(int argc, char *argv[]) {
     }
     XScreenSaverInfo *info = XScreenSaverAllocInfo();
 
-    shell_command_to_run = argv[optind];
-
-    // Fork a child process to run the command
-    pid = fork();
-    if (pid < 0) {
-        perror("fork");
-        exit(1);
-    } else if (pid == 0) {
-        // Child process
-        execl("/bin/sh", "sh", "-c", shell_command_to_run, (char *) NULL);
-        perror("execl");
-        exit(1);
-    }
+    pid = run_shell_command(argv[optind], pid);
 
     int polling_interval_seconds = 1;
     int sleep_time_seconds = polling_interval_seconds;
