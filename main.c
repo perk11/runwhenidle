@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 #include <errno.h>
 #include <sys/wait.h>
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
 
 #include "sleep_utils.h"
+#include "time_utils.h"
 
 int verbose;
 int quiet;
@@ -162,16 +164,27 @@ int main(int argc, char *argv[]) {
                 command_paused = 0;
             }
         } else {
+            struct timespec time_when_starting_to_pause;
+            int command_was_paused_this_iteration = 0;
             // User is active
             if (!command_paused) {
+                clock_gettime(CLOCK_MONOTONIC, &time_when_starting_to_pause);
                 if (verbose) {
                     fprintf(stderr, "Idle time: %lums\n", info->idle);
                 }
                 pause_command(pid);
                 command_paused = 1;
+                command_was_paused_this_iteration = 1;
             }
-            //TODO: this doesn't account for the time it took to pause the command
             sleep_time_ms = user_idle_timeout_ms - info->idle;
+
+            if (command_was_paused_this_iteration) {
+                struct timespec time_before_sleep;
+                clock_gettime(CLOCK_MONOTONIC, &time_before_sleep);
+                long long pausing_time_ms = get_elapsed_time_ms(time_when_starting_to_pause, time_before_sleep);
+                sleep_time_ms = sleep_time_ms - pausing_time_ms;
+            }
+
             if (sleep_time_ms < polling_interval_ms) {
                 sleep_time_ms = polling_interval_ms;
             }
