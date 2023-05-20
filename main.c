@@ -5,8 +5,10 @@
 #include <sys/wait.h>
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
+int verbose;
+int quiet;
 
-void pause_command(pid_t pid, int quiet) {
+void pause_command(pid_t pid) {
     if (!quiet) {
         printf("User activity is detected, pausing PID %i.\n", pid);
     }
@@ -16,7 +18,7 @@ void pause_command(pid_t pid, int quiet) {
     }
 }
 
-void resume_command(pid_t pid, int quiet) {
+void resume_command(pid_t pid) {
     if (!quiet) {
         printf("Lack of user activity is detected, resuming PID %i.\n", pid);
     }
@@ -34,8 +36,6 @@ int main(int argc, char *argv[]) {
     const char *shell_command_to_run = NULL;
     pid_t pid;
     int user_idle_timeout_ms = 300000;
-    int verbose = 0;
-    int quiet = 0;
 
     // Define command line options
     struct option long_options[] = {
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Idle time: %lums\n", info->idle);
                 }
 
-                resume_command(pid, quiet);
+                resume_command(pid);
                 command_paused = 0;
             }
         } else {
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
                 if (verbose) {
                     fprintf(stderr, "Idle time: %lums\n", info->idle);
                 }
-                pause_command(pid, quiet);
+                pause_command(pid);
                 command_paused = 1;
             }
             //TODO: this doesn't account for the time it took to pause the command
