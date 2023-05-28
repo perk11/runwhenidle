@@ -34,14 +34,14 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 ### Example 1:
     
-    runwhenidle -t 100 -v "cp /filea /fileb"
+    runwhenidle -t 100 -v cp /filea /fileb
 
 Run the `cp` command and pause it while user is active. When user is inactive for 100 seconds, resume the command.
 Output debug information to stderr.
 
 ### Example 2:
 
-    runwhenidle --timeout=300 -q "cat /dev/zero"
+    runwhenidle --timeout=300 -q cat /dev/zero
 
 Run the `cat /dev/zero` command and pause it while user is active. `-q` option makes sure runwhenidle doesn't output anything other than the output of `cat /dev/zero`. 
 

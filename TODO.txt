@@ -1,6 +1,5 @@
 Here are the planned changes:
 
-* Add support of passing the command without quotes, like `watch`.
 * Add support for --version|-V argument.
 * AUR package.
 * Look more into Wayland support.

@@ -7,6 +7,8 @@
 #include <sys/wait.h>
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
+#include <string.h>
+#include <assert.h>
 
 #include "sleep_utils.h"
 #include "time_utils.h"
@@ -83,6 +85,49 @@ void exit_if_pid_has_finished(pid_t pid) {
     }
 }
 
+char *read_remaining_arguments_as_char(int argc,
+                                       char *const *argv) {
+    if (optind == argc) { //there is one argument remaining
+        char *last_and_only_argument = strdup(argv[optind]);
+        size_t last_argument_length = strlen(last_and_only_argument);
+        //check if it's quoted and if it is, get rid of the quotes
+        if (last_and_only_argument[0] == '"' && last_and_only_argument[last_argument_length - 1] == '"') {
+            // shift the argument string one position to the left, removing the leading quote
+            memmove(last_and_only_argument, last_and_only_argument + 1, last_argument_length - 2);
+            last_and_only_argument[last_argument_length - 2] = '\0'; // replace closing quote with null terminator
+            return last_and_only_argument;
+        }
+        return last_and_only_argument;
+    }
+
+    size_t memory_to_be_allocated_for_remaining_arguments_string = 0;
+    for (int i = optind; i < argc; i++) {
+        memory_to_be_allocated_for_remaining_arguments_string +=
+                strlen(argv[i]) + 1; // +1 for space separator or null terminator
+    }
+
+    char *remaining_arguments_string = NULL; // Variable to store the remaining_arguments_string
+
+    // Allocate memory for the remaining_arguments_string
+    remaining_arguments_string = malloc(memory_to_be_allocated_for_remaining_arguments_string);
+    if (remaining_arguments_string == NULL) {
+        fprintf(stderr, "Failed to allocate memory while parsing command to be ran.\n");
+        exit(1);
+    }
+
+    size_t current_length_of_all_arguments = 0;
+    for (int i = optind; i < argc; i++) {
+        size_t current_argument_length = strlen(argv[i]);
+        memcpy(remaining_arguments_string + current_length_of_all_arguments, argv[i], current_argument_length);
+        current_length_of_all_arguments += current_argument_length;
+        remaining_arguments_string[current_length_of_all_arguments++] = ' '; // Add space separator
+    }
+    assert(current_length_of_all_arguments == memory_to_be_allocated_for_remaining_arguments_string);
+    remaining_arguments_string[current_length_of_all_arguments - 1] = '\0'; // Replace the last space separator with a null terminator
+
+    return remaining_arguments_string;
+}
+
 int main(int argc, char *argv[]) {
     pid_t pid;
     long unsigned user_idle_timeout_ms = 300000;
@@ -93,12 +138,12 @@ int main(int argc, char *argv[]) {
             {"verbose", no_argument,       NULL, 'v'},
             {"quiet",   no_argument,       NULL, 'q'},
             {"help",    no_argument,       NULL, 'h'},
-            {NULL,      0,                 NULL, 0}
+            {NULL, 0,                      NULL, 0}
     };
 
     // Parse command line options
     int option;
-    while ((option = getopt_long(argc, argv, "hvqt:", long_options, NULL)) != -1) {
+    while ((option = getopt_long(argc, argv, "+hvqt:", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
                 const long TIMEOUT_MAX_SUPPORTED_VALUE = 100000000; //~3 years
@@ -132,6 +177,7 @@ int main(int argc, char *argv[]) {
         print_usage(argv[0]);
         return 1;
     }
+    char *shell_command_to_run = read_remaining_arguments_as_char(argc, argv);
 
     //Open display and initialize XScreensaverInfo for querying idle time
     Display *dpy = XOpenDisplay(NULL);
@@ -141,7 +187,7 @@ int main(int argc, char *argv[]) {
     }
     XScreenSaverInfo *info = XScreenSaverAllocInfo();
 
-    pid = run_shell_command(argv[optind], pid);
+    pid = run_shell_command(shell_command_to_run, pid);
 
     // Let command run for 300ms to give it a chance to error-out or provide initial output.
     // 300ms is chosen to avoid giving user a noticeable delay while giving most quick commands a chance to finish.
