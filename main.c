@@ -188,6 +188,7 @@ int main(int argc, char *argv[]) {
     XScreenSaverInfo *info = XScreenSaverAllocInfo();
 
     pid = run_shell_command(shell_command_to_run, pid);
+    free(shell_command_to_run);
 
     // Let command run for 300ms to give it a chance to error-out or provide initial output.
     // 300ms is chosen to avoid giving user a noticeable delay while giving most quick commands a chance to finish.
