@@ -13,6 +13,10 @@
 #include "sleep_utils.h"
 #include "time_utils.h"
 
+#ifndef VERSION
+#define VERSION 'unkown'
+#endif
+
 int verbose;
 int quiet;
 
@@ -50,8 +54,11 @@ void resume_command(pid_t pid) {
 }
 
 void print_usage(char *binary_name) {
-    printf("Usage: %s [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] shell_command_to_run\n",
+    printf("Usage: %s [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] [--version|-V] shell_command_to_run [shell_command_arguments]\n",
            binary_name);
+}
+void print_version() {
+    printf("runwhenidle %s\n", VERSION);
 }
 
 pid_t run_shell_command(const char *shell_command_to_run, pid_t pid) {
@@ -138,12 +145,13 @@ int main(int argc, char *argv[]) {
             {"verbose", no_argument,       NULL, 'v'},
             {"quiet",   no_argument,       NULL, 'q'},
             {"help",    no_argument,       NULL, 'h'},
+            {"version",    no_argument,    NULL, 'V'},
             {NULL, 0,                      NULL, 0}
     };
 
     // Parse command line options
     int option;
-    while ((option = getopt_long(argc, argv, "+hvqt:", long_options, NULL)) != -1) {
+    while ((option = getopt_long(argc, argv, "+hvqt:V", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
                 const long TIMEOUT_MAX_SUPPORTED_VALUE = 100000000; //~3 years
@@ -156,6 +164,9 @@ int main(int argc, char *argv[]) {
                 }
                 user_idle_timeout_ms = timeout_arg_value * 1000;
                 break;
+            case 'V':
+                print_version();
+                return 0;
             case 'v':
                 verbose = 1;
                 break;

@@ -6,7 +6,6 @@ ifeq ($(PREFIX),)
 endif
 SOURCES = time_utils.c sleep_utils.c main.c
 OBJECTS = $(SOURCES:.c=.o)
-
 all: executable
 
 release: CCFLAGS += -O3
@@ -14,6 +13,8 @@ release: executable
 
 debug: CCFLAGS += -DDEBUG -ggdb
 debug: executable
+
+executable: CCFLAGS += -DVERSION=\"$(shell git describe --tags 2>/dev/null || (echo -n "0.0-dev-" && git rev-parse HEAD))\"
 
 %.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@ $(LDFLAGS) $(LDLIBS)
