@@ -145,17 +145,20 @@ int main(int argc, char *argv[]) {
     int option;
     while ((option = getopt_long(argc, argv, "+hvqt:V", long_options, NULL)) != -1) {
         switch (option) {
-            case 't':
+            case 't': {
                 const long TIMEOUT_MAX_SUPPORTED_VALUE = 100000000; //~3 years
                 const long TIMEOUT_MIN_SUPPORTED_VALUE = 1;
                 long timeout_arg_value = strtol(optarg, NULL, 10);
-                if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE || timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
-                    printf("Invalid timeout value: \"%s\". Range supported: %ld-%ld\n", optarg, TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
+                if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE ||
+                    timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
+                    printf("Invalid timeout value: \"%s\". Range supported: %ld-%ld\n", optarg,
+                           TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
                     print_usage(argv[0]);
                     return 1;
                 }
                 user_idle_timeout_ms = timeout_arg_value * 1000;
                 break;
+            }
             case 'V':
                 print_version();
                 return 0;
