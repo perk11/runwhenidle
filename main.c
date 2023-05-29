@@ -251,7 +251,7 @@ int main(int argc, char *argv[]) {
             }
             if (verbose) {
                 fprintf(stderr,
-                        "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %lums\n",
+                        "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %lldms\n",
                         info->idle,
                         sleep_time_ms
                 );
