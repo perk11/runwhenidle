@@ -96,14 +96,6 @@ char *read_remaining_arguments_as_char(int argc,
                                        char *const *argv) {
     if (optind == argc) { //there is one argument remaining
         char *last_and_only_argument = strdup(argv[optind]);
-        size_t last_argument_length = strlen(last_and_only_argument);
-        //check if it's quoted and if it is, get rid of the quotes
-        if (last_and_only_argument[0] == '"' && last_and_only_argument[last_argument_length - 1] == '"') {
-            // shift the argument string one position to the left, removing the leading quote
-            memmove(last_and_only_argument, last_and_only_argument + 1, last_argument_length - 2);
-            last_and_only_argument[last_argument_length - 2] = '\0'; // replace closing quote with null terminator
-            return last_and_only_argument;
-        }
         return last_and_only_argument;
     }
 
