@@ -3,3 +3,4 @@ Here are the planned changes:
 * AUR package.
 * Look more into Wayland support.
 * ?Test coverage?
+* Look at other types of limiting the process (CPU, IO limiting) when not idle.
