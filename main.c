@@ -116,7 +116,7 @@ char *read_remaining_arguments_as_char(int argc,
     // Allocate memory for the remaining_arguments_string
     remaining_arguments_string = malloc(memory_to_be_allocated_for_remaining_arguments_string);
     if (remaining_arguments_string == NULL) {
-        //not using print_error here intentionally
+        //not using fprintf_error here intentionally
         fprintf(stderr, "Failed to allocate memory while parsing command to be ran.\n");
         exit(1);
     }
@@ -166,8 +166,8 @@ int main(int argc, char *argv[]) {
                 long timeout_arg_value = strtol(optarg, NULL, 10);
                 if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE ||
                     timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
-                    printf("Invalid timeout value: \"%s\". Range supported: %ld-%ld\n", optarg,
-                           TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
+                    fprintf_error("Invalid timeout value: \"%s\". Range supported: %ld-%ld", optarg,
+                                  TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
                     print_usage(argv[0]);
                     return 1;
                 }
@@ -194,7 +194,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     if (quiet && verbose) {
-        printf("Incompatible options --quiet|-q and --verbose|-v used");
+        fprintf_error("Incompatible options --quiet|-q and --verbose|-v used");
         print_usage(argv[0]);
         return 1;
     }
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
     x_display = XOpenDisplay(NULL);
     if (!x_display) {
         xscreensaver_is_available = 0;
-        print_error("Couldn't open an X11 display!\n");
+        fprintf_error("Couldn't open an X11 display!");
     } else {
         int xscreensaver_event_base, xscreensaver_error_base; //not sure why these are neeeded
         xscreensaver_is_available = XScreenSaverQueryExtension(x_display, &xscreensaver_event_base,
@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!xscreensaver_is_available) {
-        print_error("No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.\n");
+        fprintf_error("No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.");
     }
 
     pid = run_shell_command(shell_command_to_run, pid);

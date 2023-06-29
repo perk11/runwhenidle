@@ -1,7 +1,6 @@
 #ifndef RUNWHENIDLE_TTY_UTILS_H
 #define RUNWHENIDLE_TTY_UTILS_H
-#include <stdio.h>
-void print_colored_text(FILE* stream, const char* color, const char* message);
-void print_error(const char* message);
+
+void fprintf_error(const char *format, ...);
 
 #endif //RUNWHENIDLE_TTY_UTILS_H
