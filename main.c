@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "sleep_utils.h"
 #include "time_utils.h"
@@ -19,6 +20,10 @@
 
 int verbose;
 int quiet;
+int xscreensaver_is_available;
+Display *x_display;
+XScreenSaverInfo *xscreensaver_info;
+const long unsigned IDLE_TIME_NOT_AVAILABLE_VALUE = ULONG_MAX;
 
 void handle_kill_error(char *signal_name, pid_t pid) {
     const char *reason;
@@ -126,7 +131,15 @@ char *read_remaining_arguments_as_char(int argc,
 
     return remaining_arguments_string;
 }
+long unsigned query_user_idle_time()
+{
+    if (xscreensaver_is_available) {
+        XScreenSaverQueryInfo(x_display, DefaultRootWindow(x_display), xscreensaver_info);
+        return xscreensaver_info->idle;
+    }
 
+    return IDLE_TIME_NOT_AVAILABLE_VALUE;
+}
 int main(int argc, char *argv[]) {
     pid_t pid;
     long unsigned user_idle_timeout_ms = 300000;
@@ -186,12 +199,22 @@ int main(int argc, char *argv[]) {
     char *shell_command_to_run = read_remaining_arguments_as_char(argc, argv);
 
     //Open display and initialize XScreensaverInfo for querying idle time
-    Display *dpy = XOpenDisplay(NULL);
-    if (!dpy) {
+    x_display = XOpenDisplay(NULL);
+    if (!x_display) {
+        xscreensaver_is_available = 0;
         fprintf(stderr, "Couldn't open an X11 display!\n");
-        return 1;
+    } else {
+        int xscreensaver_event_base, xscreensaver_error_base; //not sure why these are neeeded
+        xscreensaver_is_available = XScreenSaverQueryExtension(x_display, &xscreensaver_event_base,
+                                                               &xscreensaver_error_base);
+        if (xscreensaver_is_available) {
+            xscreensaver_info = XScreenSaverAllocInfo();
+        }
     }
-    XScreenSaverInfo *info = XScreenSaverAllocInfo();
+
+    if (!xscreensaver_is_available) {
+        fprintf(stderr, "No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.\n");
+    }
 
     pid = run_shell_command(shell_command_to_run, pid);
     free(shell_command_to_run);
@@ -204,21 +227,22 @@ int main(int argc, char *argv[]) {
     long long sleep_time_ms = polling_interval_ms;
     int command_paused = 0;
 
+    unsigned long user_idle_time_ms;
     // Monitor user activity
     while (1) {
-        XScreenSaverQueryInfo(dpy, DefaultRootWindow(dpy), info);
+        user_idle_time_ms = query_user_idle_time();
 
         // Checking this after querying the screensaver timer so that the command is still running while
         // we're querying the screensaver and has a chance to do some work and finish,
         // but before potentially pausing the command to avoid trying to pause it if it completed.
         exit_if_pid_has_finished(pid);
 
-        if (info->idle >= user_idle_timeout_ms) {
+        if (user_idle_time_ms >= user_idle_timeout_ms) {
             // User is inactive
             if (command_paused) {
                 sleep_time_ms = polling_interval_ms; //reset to default value
                 if (verbose) {
-                    fprintf(stderr, "Idle time: %lums\n", info->idle);
+                    fprintf(stderr, "Idle time: %lums\n", user_idle_time_ms);
                 }
 
                 resume_command(pid);
@@ -231,13 +255,13 @@ int main(int argc, char *argv[]) {
             if (!command_paused) {
                 clock_gettime(CLOCK_MONOTONIC, &time_when_starting_to_pause);
                 if (verbose) {
-                    fprintf(stderr, "Idle time: %lums\n", info->idle);
+                    fprintf(stderr, "Idle time: %lums\n", user_idle_time_ms);
                 }
                 pause_command(pid);
                 command_paused = 1;
                 command_was_paused_this_iteration = 1;
             }
-            sleep_time_ms = user_idle_timeout_ms - info->idle;
+            sleep_time_ms = user_idle_timeout_ms - user_idle_time_ms;
 
             if (command_was_paused_this_iteration) {
                 struct timespec time_before_sleep;
@@ -252,7 +276,7 @@ int main(int argc, char *argv[]) {
             if (verbose) {
                 fprintf(stderr,
                         "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %lldms\n",
-                        info->idle,
+                        user_idle_time_ms,
                         sleep_time_ms
                 );
             }
