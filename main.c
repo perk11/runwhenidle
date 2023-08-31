@@ -19,8 +19,8 @@
 #define VERSION 'unkown'
 #endif
 
-int verbose;
-int quiet;
+int verbose = 0;
+int quiet = 0;
 int xscreensaver_is_available;
 Display *x_display;
 XScreenSaverInfo *xscreensaver_info;
