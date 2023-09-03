@@ -21,6 +21,7 @@
 
 int verbose = 0;
 int quiet = 0;
+int debug = 0;
 int xscreensaver_is_available;
 Display *x_display;
 XScreenSaverInfo *xscreensaver_info;
@@ -60,7 +61,7 @@ void resume_command(pid_t pid) {
 }
 
 void print_usage(char *binary_name) {
-    printf("Usage: %s [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] [--version|-V] shell_command_to_run [shell_command_arguments]\n",
+    printf("Usage: %s [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--debug] [--quiet|-q] [--version|-V] shell_command_to_run [shell_command_arguments]\n",
            binary_name);
 }
 void print_version() {
@@ -89,6 +90,7 @@ pid_t run_shell_command(const char *shell_command_to_run, pid_t pid) {
 
 void exit_if_pid_has_finished(pid_t pid) {
     int status;
+    if (debug) fprintf(stderr, "Checking if PID %i has finished\n", pid);
     if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
         int exit_code = WEXITSTATUS(status);
         if (verbose) {
@@ -150,6 +152,7 @@ int main(int argc, char *argv[]) {
     struct option long_options[] = {
             {"timeout", required_argument, NULL, 't'},
             {"verbose", no_argument,       NULL, 'v'},
+            {"debug", no_argument,         NULL, 'd'},
             {"quiet",   no_argument,       NULL, 'q'},
             {"help",    no_argument,       NULL, 'h'},
             {"version",    no_argument,    NULL, 'V'},
@@ -180,6 +183,10 @@ int main(int argc, char *argv[]) {
             case 'v':
                 verbose = 1;
                 break;
+            case 'd':
+                debug = 1;
+                verbose = 1;
+                break;
             case 'q':
                 quiet = 1;
                 break;
@@ -189,7 +196,13 @@ int main(int argc, char *argv[]) {
                 return 1;
         }
     }
+    if (debug) fprintf(stderr, "verbose: %i, debug: %i, quiet: %i, user_idle_timeout_ms: %i\n", verbose, debug, quiet, user_idle_timeout_ms);
     if (optind >= argc) {
+        print_usage(argv[0]);
+        return 1;
+    }
+    if (quiet && debug) {
+        fprintf_error("Incompatible options --quiet|-q and --debug|-d used");
         print_usage(argv[0]);
         return 1;
     }
@@ -198,6 +211,7 @@ int main(int argc, char *argv[]) {
         print_usage(argv[0]);
         return 1;
     }
+
     char *shell_command_to_run = read_remaining_arguments_as_char(argc, argv);
 
     //Open display and initialize XScreensaverInfo for querying idle time
@@ -240,11 +254,11 @@ int main(int argc, char *argv[]) {
         exit_if_pid_has_finished(pid);
 
         if (user_idle_time_ms >= user_idle_timeout_ms) {
-            // User is inactive
+            if (debug) fprintf(stderr,"Idle time: %lums, idle timeout: %lums, user is inactive\n", user_idle_time_ms, user_idle_timeout_ms);
             if (command_paused) {
                 sleep_time_ms = polling_interval_ms; //reset to default value
                 if (verbose) {
-                    fprintf(stderr, "Idle time: %lums\n", user_idle_time_ms);
+                    fprintf(stderr, "Idle time: %lums, idle timeout: %lums, resuming command\n", user_idle_time_ms, user_idle_timeout_ms);
                 }
 
                 resume_command(pid);
@@ -257,32 +271,39 @@ int main(int argc, char *argv[]) {
             if (!command_paused) {
                 clock_gettime(CLOCK_MONOTONIC, &time_when_starting_to_pause);
                 if (verbose) {
-                    fprintf(stderr, "Idle time: %lums\n", user_idle_time_ms);
+                    fprintf(stderr, "Idle time: %lums.\n", user_idle_time_ms);
                 }
                 pause_command(pid);
+                if (debug) fprintf(stderr,"Command paused\n");
                 command_paused = 1;
                 command_was_paused_this_iteration = 1;
             }
             sleep_time_ms = user_idle_timeout_ms - user_idle_time_ms;
-
+            if (debug) fprintf(stderr,"Target sleep time: %lums\n", sleep_time_ms);
             if (command_was_paused_this_iteration) {
+                if (debug) fprintf(stderr, "Command was paused this iteration\n");
                 struct timespec time_before_sleep;
                 clock_gettime(CLOCK_MONOTONIC, &time_before_sleep);
                 long long pausing_time_ms = get_elapsed_time_ms(time_when_starting_to_pause, time_before_sleep);
+                if (debug) fprintf(stderr, "Target sleep time before taking into account time it took to pause: %lums, time it took to pause: %lums\n", sleep_time_ms, pausing_time_ms);
                 sleep_time_ms = sleep_time_ms - pausing_time_ms;
+
             }
 
             if (sleep_time_ms < polling_interval_ms) {
+                if (debug) fprintf(stderr, "Target sleep time %lums is less than polling interval %lums, resetting it to polling interval\n", sleep_time_ms, polling_interval_ms);
                 sleep_time_ms = polling_interval_ms;
             }
             if (verbose) {
-                fprintf(stderr,
+                fprintf(
+                        stderr,
                         "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %lldms\n",
                         user_idle_time_ms,
                         sleep_time_ms
                 );
             }
         }
+        if (debug) fprintf(stderr, "Sleeping for %lums\n", sleep_time_ms);
         sleep_for_milliseconds(sleep_time_ms);
     }
 }
