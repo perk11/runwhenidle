@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
         xscreensaver_is_available = 0;
         fprintf_error("Couldn't open an X11 display!");
     } else {
-        int xscreensaver_event_base, xscreensaver_error_base; //not sure why these are neeeded
+        int xscreensaver_event_base, xscreensaver_error_base; //not sure why these are needed
         xscreensaver_is_available = XScreenSaverQueryExtension(x_display, &xscreensaver_event_base,
                                                                &xscreensaver_error_base);
         if (xscreensaver_is_available) {
