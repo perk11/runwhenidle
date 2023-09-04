@@ -267,9 +267,7 @@ long long pause_or_resume_command_depending_on_user_activity(
     return sleep_time_ms;
 }
 
-int main(int argc, char *argv[]) {
-
-    // Define command line options
+char *parse_command_line_arguments(int argc, char *argv[]) {// Define command line options
     struct option long_options[] = {
             {"timeout", required_argument, NULL, 't'},
             {"start-monitor-after", required_argument, NULL, 'a'},
@@ -293,7 +291,7 @@ int main(int argc, char *argv[]) {
                     fprintf_error("Invalid timeout value: \"%s\". Range supported: %ld-%ld", optarg,
                                   TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
                     print_usage(argv[0]);
-                    return 1;
+                    exit(1);
                 }
                 user_idle_timeout_ms = timeout_arg_value * 1000;
                 break;
@@ -306,13 +304,13 @@ int main(int argc, char *argv[]) {
                             START_MONITOR_AFTER_MIN_SUPPORTED_VALUE, START_MONITOR_AFTER_MAX_SUPPORTED_VALUE
                     );
                     print_usage(argv[0]);
-                    return 1;
+                    exit(1);
                 }
                 break;
             }
             case 'V':
                 print_version();
-                return 0;
+                exit(0);
             case 'v':
                 verbose = 1;
                 break;
@@ -324,28 +322,35 @@ int main(int argc, char *argv[]) {
                 quiet = 1;
                 break;
             case 'h':
+                print_usage(argv[0]);
+                exit(0);
+                break;
             default:
                 print_usage(argv[0]);
-                return 1;
+                exit(1);
         }
     }
     if (debug) fprintf(stderr, "verbose: %i, debug: %i, quiet: %i, user_idle_timeout_ms: %i, start_monitoring_after_ms: %lld\n", verbose, debug, quiet, user_idle_timeout_ms, start_monitor_after_ms);
     if (optind >= argc) {
         print_usage(argv[0]);
-        return 1;
+        exit(1);
     }
     if (quiet && debug) {
         fprintf_error("Incompatible options --quiet|-q and --debug used");
         print_usage(argv[0]);
-        return 1;
+        exit(1);
     }
     if (quiet && verbose) {
         fprintf_error("Incompatible options --quiet|-q and --verbose|-v used");
         print_usage(argv[0]);
-        return 1;
+        exit(1);
     }
 
-    char *shell_command_to_run = read_remaining_arguments_as_char(argc, argv);
+    return read_remaining_arguments_as_char(argc, argv);
+}
+
+int main(int argc, char *argv[]) {
+    char *shell_command_to_run = parse_command_line_arguments(argc, argv);
 
     //Open display and initialize XScreensaverInfo for querying idle time
     x_display = XOpenDisplay(NULL);
