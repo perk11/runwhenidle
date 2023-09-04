@@ -247,7 +247,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     if (quiet && debug) {
-        fprintf_error("Incompatible options --quiet|-q and --debug|-d used");
+        fprintf_error("Incompatible options --quiet|-q and --debug used");
         print_usage(argv[0]);
         return 1;
     }
