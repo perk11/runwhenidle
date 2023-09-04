@@ -44,9 +44,12 @@ void pause_command(pid_t pid) {
     if (!quiet) {
         printf("User activity is detected, pausing PID %i\n", pid);
     }
-    if (kill(pid, SIGTSTP) == -1) {
+    int kill_result = kill(pid, SIGTSTP);
+    if (kill_result == -1) {
         handle_kill_error("SIGTSTP", pid);
         exit(1);
+    } else {
+        if (debug) fprintf(stderr, "kill function sending signal returned %i\n", kill_result);
     }
 }
 
@@ -54,9 +57,12 @@ void resume_command(pid_t pid) {
     if (!quiet) {
         printf("Lack of user activity is detected, resuming PID %i\n", pid);
     }
-    if (kill(pid, SIGCONT) == -1) {
+    int kill_result = kill(pid, SIGCONT);
+    if (kill_result == -1) {
         handle_kill_error("SIGCONT", pid);
         exit(1);
+    } else {
+        if (debug) fprintf(stderr, "kill function sending signal returned %i\n", kill_result);
     }
 }
 
