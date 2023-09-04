@@ -4,7 +4,7 @@ CC=gcc
 ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
-SOURCES = time_utils.c sleep_utils.c tty_utils.c main.c
+SOURCES = time_utils.c sleep_utils.c tty_utils.c main.c process_handling.c
 OBJECTS = $(SOURCES:.c=.o)
 all: executable
 

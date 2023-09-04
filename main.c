@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 #include <time.h>
-#include <errno.h>
 #include <sys/wait.h>
 #include <X11/extensions/scrnsaver.h>
 #include <getopt.h>
@@ -14,6 +11,7 @@
 #include "sleep_utils.h"
 #include "time_utils.h"
 #include "tty_utils.h"
+#include "process_handling.h"
 
 #ifndef VERSION
 #define VERSION 'unkown'
@@ -41,44 +39,6 @@ volatile sig_atomic_t interruption_received = 0;
 volatile sig_atomic_t command_paused = 0;
 pid_t pid;
 
-void handle_kill_error(char *signal_name, pid_t pid) {
-    const char *reason;
-    if (errno == EPERM) {
-        reason = "Operation not permitted";
-    } else if (errno == EINVAL) {
-        reason = "Invalid signal number";
-    } else if (errno == ESRCH) {
-        reason = "No such process";
-    }
-
-    printf("Failed to send %s signal to PID %i: %s\n", signal_name, pid, reason);
-}
-void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
-    if (debug) {
-        printf("Sending %s to %i\n",signal_name, pid);
-    }
-    int kill_result = kill(pid, signal);
-    if (kill_result == -1) {
-        handle_kill_error(signal_name, pid);
-        exit(1);
-    } else {
-        if (debug) fprintf(stderr, "kill function sending %s returned %i\n",signal_name, kill_result);
-    }
-}
-
-void pause_command(pid_t pid) {
-    if (!quiet) {
-        printf("User activity is detected, pausing PID %i\n", pid);
-    }
-    send_signal_to_pid(pid, SIGTSTP, "SIGTSTP");
-}
-
-void resume_command(pid_t pid) {
-    if (!quiet) {
-        printf("Resuming PID %i\n", pid);
-    }
-    send_signal_to_pid(pid, SIGCONT, "SIGCONT");
-}
 
 void print_usage(char *binary_name) {
     printf("Usage: %s [OPTIONS] shell_command_to_run [shell_command_arguments]\n", binary_name);
@@ -92,26 +52,6 @@ void print_usage(char *binary_name) {
 }
 void print_version() {
     printf("runwhenidle %s\n", VERSION);
-}
-
-pid_t run_shell_command(const char *shell_command_to_run, pid_t pid) {
-    if (verbose) {
-        printf("Starting \"%s\"\n", shell_command_to_run);
-    }
-    pid = fork();
-    if (pid < 0) {
-        perror("fork");
-        exit(1);
-    } else if (pid == 0) {
-        // Child process
-        execl("/bin/sh", "sh", "-c", shell_command_to_run, (char *) NULL);
-        perror("execl");
-        exit(1);
-    }
-    if (!quiet) {
-        printf("Started \"%s\" with PID %i\n", shell_command_to_run, pid);
-    }
-    return pid;
 }
 
 void exit_if_pid_has_finished(pid_t pid) {
@@ -370,7 +310,7 @@ int main(int argc, char *argv[]) {
         fprintf_error("No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.");
     }
 
-    pid = run_shell_command(shell_command_to_run, pid);
+    pid = run_shell_command(shell_command_to_run);
     free(shell_command_to_run);
     struct timespec time_when_command_started;
     clock_gettime(CLOCK_MONOTONIC, &time_when_command_started);
