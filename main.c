@@ -28,7 +28,7 @@ XScreenSaverInfo *xscreensaver_info;
 const long unsigned IDLE_TIME_NOT_AVAILABLE_VALUE = ULONG_MAX;
 
 volatile sig_atomic_t interruption_received = 0;
-int command_paused = 0;
+volatile sig_atomic_t command_paused = 0;
 pid_t pid;
 
 void handle_kill_error(char *signal_name, pid_t pid) {
