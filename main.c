@@ -45,7 +45,7 @@ void pause_command(pid_t pid) {
         printf("User activity is detected, pausing PID %i\n", pid);
     }
     if (kill(pid, SIGTSTP) == -1) {
-        handle_kill_error("SIGCONT", pid);
+        handle_kill_error("SIGTSTP", pid);
         exit(1);
     }
 }
