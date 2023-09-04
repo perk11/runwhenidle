@@ -155,7 +155,6 @@ long unsigned query_user_idle_time()
     return IDLE_TIME_NOT_AVAILABLE_VALUE;
 }
 int wait_for_pid_to_exit_synchronously(int pid) {
-    // Wait for the child process to complete
     int status;
     waitpid(pid, &status, 0);
     int exit_code = WEXITSTATUS(status);
@@ -174,6 +173,7 @@ int handle_interruption() {
         }
         resume_command(pid);
     }
+    //Wait for the child process to complete
     return wait_for_pid_to_exit_synchronously(pid);
 }
 void sigint_handler(int signum) {
