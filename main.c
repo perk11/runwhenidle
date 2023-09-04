@@ -27,6 +27,10 @@ Display *x_display;
 XScreenSaverInfo *xscreensaver_info;
 const long unsigned IDLE_TIME_NOT_AVAILABLE_VALUE = ULONG_MAX;
 
+volatile sig_atomic_t interruption_received = 0;
+int command_paused = 0;
+pid_t pid;
+
 void handle_kill_error(char *signal_name, pid_t pid) {
     const char *reason;
     if (errno == EPERM) {
@@ -39,31 +43,31 @@ void handle_kill_error(char *signal_name, pid_t pid) {
 
     printf("Failed to send %s signal to PID %i: %s\n", signal_name, pid, reason);
 }
+void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
+    if (debug) {
+        printf("Sending %s to %i\n",signal_name, pid);
+    }
+    int kill_result = kill(pid, signal);
+    if (kill_result == -1) {
+        handle_kill_error(signal_name, pid);
+        exit(1);
+    } else {
+        if (debug) fprintf(stderr, "kill function sending %s returned %i\n",signal_name, kill_result);
+    }
+}
 
 void pause_command(pid_t pid) {
     if (!quiet) {
         printf("User activity is detected, pausing PID %i\n", pid);
     }
-    int kill_result = kill(pid, SIGTSTP);
-    if (kill_result == -1) {
-        handle_kill_error("SIGTSTP", pid);
-        exit(1);
-    } else {
-        if (debug) fprintf(stderr, "kill function sending signal returned %i\n", kill_result);
-    }
+    send_signal_to_pid(pid, SIGTSTP, "SIGTSTP");
 }
 
 void resume_command(pid_t pid) {
     if (!quiet) {
-        printf("Lack of user activity is detected, resuming PID %i\n", pid);
+        printf("Resuming PID %i\n", pid);
     }
-    int kill_result = kill(pid, SIGCONT);
-    if (kill_result == -1) {
-        handle_kill_error("SIGCONT", pid);
-        exit(1);
-    } else {
-        if (debug) fprintf(stderr, "kill function sending signal returned %i\n", kill_result);
-    }
+    send_signal_to_pid(pid, SIGCONT, "SIGCONT");
 }
 
 void print_usage(char *binary_name) {
@@ -150,8 +154,43 @@ long unsigned query_user_idle_time()
 
     return IDLE_TIME_NOT_AVAILABLE_VALUE;
 }
+int wait_for_pid_to_exit_synchronously(int pid) {
+    // Wait for the child process to complete
+    int status;
+    waitpid(pid, &status, 0);
+    int exit_code = WEXITSTATUS(status);
+    if (verbose) {
+        fprintf(stderr, "PID %i has finished with exit code %u\n", pid, exit_code);
+    }
+
+    return exit_code;
+}
+int handle_interruption() {
+    if (command_paused) {
+        if (verbose) {
+            fprintf(stderr,
+                    "Since command was previously paused, we will try to resume it now to be able to handle the interruption before exiting\n"
+            );
+        }
+        resume_command(pid);
+    }
+    return wait_for_pid_to_exit_synchronously(pid);
+}
+void sigint_handler(int signum) {
+    if (!quiet) {
+        printf("Received SIGINT, sending SIGINT to the command and waiting for it to finish.\n");
+    }
+    send_signal_to_pid(pid, signum, "SIGINT");
+    interruption_received = 1;
+}
+void sigterm_handler(int signum) {
+    if (!quiet) {
+        printf("Received SIGTERM, sending SIGTERM to the command and waiting for it to finish.\n");
+    }
+    send_signal_to_pid(pid, signum, "SIGTERM");
+    interruption_received = 1;
+}
 int main(int argc, char *argv[]) {
-    pid_t pid;
     long unsigned user_idle_timeout_ms = 300000;
 
     // Define command line options
@@ -247,11 +286,15 @@ int main(int argc, char *argv[]) {
 
     long long polling_interval_ms = 1000;
     long long sleep_time_ms = polling_interval_ms;
-    int command_paused = 0;
 
     unsigned long user_idle_time_ms;
+    signal(SIGINT, sigint_handler);
+    signal(SIGTERM, sigterm_handler);
     // Monitor user activity
     while (1) {
+        if (interruption_received) {
+            return handle_interruption();
+        }
         user_idle_time_ms = query_user_idle_time();
 
         // Checking this after querying the screensaver timer so that the command is still running while
@@ -266,7 +309,10 @@ int main(int argc, char *argv[]) {
                 if (verbose) {
                     fprintf(stderr, "Idle time: %lums, idle timeout: %lums, resuming command\n", user_idle_time_ms, user_idle_timeout_ms);
                 }
-
+                if (!quiet){
+                    printf("Lack of user activity detected. ");
+                    //intentionally no new line here, resume_command will print the rest of the message.
+                }
                 resume_command(pid);
                 command_paused = 0;
             }

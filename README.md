@@ -11,6 +11,10 @@ It then checks once per second if user activity has resumed, and once it is, pau
 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened therefore a running X server is required.
 Wayland is not currently supported.
 
+If runwhenidle receives an interruption signal (SIGINT or SIGTERM), it will pass that signal to the command it is
+running, resume the command if it previously paused it, stop checking for user activity and will wait for the command
+to handle the signal.
+
 ## Installation
 
 **Ubuntu and Debian**: Download the deb file attached to the [latest release](https://github.com/perk11/runwhenidle/releases/latest).
@@ -25,10 +29,10 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 ## Usage
 
-    runwhenidle [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--quiet|-q] shell_command_to_run
+    runwhenidle [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--debug] [--quiet|-q] [--version|-V] shell_command_to_run [shell_command_arguments]
+
 
 `--timeout` or `-t` specifies how many seconds of user inactivity are enough to resume the command. Default value is 300/5 minutes.
-
 `--verbose` or `-v` adds additional debug output
 `--quiet` or `-q` suppresses all the output from `runwhenidle` and only displays output from the command that is running.  
 
