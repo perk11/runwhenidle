@@ -30,4 +30,20 @@ void resume_command(pid_t pid);
  * @return The PID of the child process on success,
  */
 pid_t run_shell_command(const char *shell_command_to_run);
+
+/**
+ * Waits for a specific process to exit synchronously and returns its exit code.
+ *
+ * @param pid The process ID (PID) of the target process to wait for.
+ * @return The exit code of the process
+ */
+int wait_for_pid_to_exit_synchronously(int pid);
+
+/**
+ * Checks if a specific process has finished and exits the current process with the same exit code if it has.
+ * This function does not block and returns immediately if the process has not finished.
+ *
+ * @param pid The process ID (PID) of the target process to check.
+ */
+void exit_if_pid_has_finished(pid_t pid);
 #endif //RUNWHENIDLE_PROCESS_HANDLING_H

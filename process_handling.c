@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #include "process_handling.h"
 #include "output_settings.h"
@@ -71,4 +72,29 @@ void resume_command(pid_t pid) {
         printf("Resuming PID %i\n", pid);
     }
     send_signal_to_pid(pid, SIGCONT, "SIGCONT");
+}
+
+
+int wait_for_pid_to_exit_synchronously(int pid) {
+    int status;
+    waitpid(pid, &status, 0);
+    int exit_code = WEXITSTATUS(status);
+    if (verbose) {
+        fprintf(stderr, "PID %i has finished with exit code %u\n", pid, exit_code);
+    }
+
+    return exit_code;
+}
+
+
+void exit_if_pid_has_finished(pid_t pid) {
+    int status;
+    if (debug) fprintf(stderr, "Checking if PID %i has finished\n", pid);
+    if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
+        int exit_code = WEXITSTATUS(status);
+        if (verbose) {
+            fprintf(stderr, "PID %i has finished with exit code %u\n", pid, exit_code);
+        }
+        exit(exit_code);
+    }
 }

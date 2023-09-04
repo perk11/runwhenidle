@@ -54,18 +54,6 @@ void print_version() {
     printf("runwhenidle %s\n", VERSION);
 }
 
-void exit_if_pid_has_finished(pid_t pid) {
-    int status;
-    if (debug) fprintf(stderr, "Checking if PID %i has finished\n", pid);
-    if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
-        int exit_code = WEXITSTATUS(status);
-        if (verbose) {
-            fprintf(stderr, "PID %i has finished with exit code %u\n", pid, exit_code);
-        }
-        exit(exit_code);
-    }
-}
-
 char *read_remaining_arguments_as_char(int argc,
                                        char *const *argv) {
     if (optind == argc) { //there is one argument remaining
@@ -110,16 +98,7 @@ long unsigned query_user_idle_time()
 
     return IDLE_TIME_NOT_AVAILABLE_VALUE;
 }
-int wait_for_pid_to_exit_synchronously(int pid) {
-    int status;
-    waitpid(pid, &status, 0);
-    int exit_code = WEXITSTATUS(status);
-    if (verbose) {
-        fprintf(stderr, "PID %i has finished with exit code %u\n", pid, exit_code);
-    }
 
-    return exit_code;
-}
 int handle_interruption() {
     if (command_paused) {
         if (verbose) {
