@@ -68,6 +68,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
     struct option long_options[] = {
             {"timeout", required_argument, NULL, 't'},
             {"start-monitor-after", required_argument, NULL, 'a'},
+            {"pause-method", required_argument, NULL, 'm'},
             {"verbose", no_argument,       NULL, 'v'},
             {"debug", no_argument,         NULL, 'd'},
             {"quiet",   no_argument,       NULL, 'q'},
@@ -121,7 +122,6 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
             case 'h':
                 print_usage(argv[0]);
                 exit(0);
-                break;
             default:
                 print_usage(argv[0]);
                 exit(1);
