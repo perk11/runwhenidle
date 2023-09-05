@@ -29,12 +29,19 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 ## Usage
 
-    runwhenidle [--timeout|-t timeout_value_in_seconds] [--verbose|-v] [--debug] [--quiet|-q] [--version|-V] shell_command_to_run [shell_command_arguments]
+    runwhenidle [OPTIONS] shell_command_to_run [shell_command_arguments]
 
+### Options
 
-`--timeout` or `-t` specifies how many seconds of user inactivity are enough to resume the command. Default value is 300/5 minutes.
-`--verbose` or `-v` adds additional debug output
-`--quiet` or `-q` suppresses all the output from `runwhenidle` and only displays output from the command that is running.  
+| Option                            | Description                                                                                                                                                | Default Value |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| `--timeout\|-t <seconds>`         | Set the user idle time after which the command can run in seconds.                                                                                         | 300 seconds   |
+| `--start-monitor-after\| -a <ms>` | Set an initial delay in milliseconds before monitoring starts. During this time command runs unrestricted. This helps to catch quick errors.               | 300 ms        |
+| `--pause-method\| -m <method>`    | Specify method for pausing the command when the user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (cannot be ignored). | SIGTSTP       |
+| `--verbose\| -v`                  | Enable verbose output for monitoring.                                                                                                                      | Not verbose   |
+| `--debug`                         | Enable debugging output.                                                                                                                                   | No debug      |
+| `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running.                                             | Not quiet     |
+| `--version\|-V`                   | Print the program version information.                                                                                                                     |               |
 
 ### Example 1:
     
