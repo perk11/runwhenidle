@@ -74,7 +74,7 @@ void pause_command(pid_t pid) {
             send_signal_to_pid(pid, SIGSTOP, "SIGSTOP");
             break;
         default:
-            fprintf_error("Unsupported paused method: %i", pause_method );
+            fprintf_error("Unsupported pause method: %i\n", pause_method);
             exit(1);
     }
 }
