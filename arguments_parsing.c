@@ -4,10 +4,12 @@
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include "output_settings.h"
 #include "arguments_parsing.h"
 #include "tty_utils.h"
+#include "pause_methods.h"
 
 const long TIMEOUT_MAX_SUPPORTED_VALUE = 100000000; //~3 years
 const long TIMEOUT_MIN_SUPPORTED_VALUE = 1;
@@ -19,6 +21,7 @@ void print_usage(char *binary_name) {
     printf("\nOptions:\n");
     printf("  --timeout, -t <timeout_value_in_seconds>  Set the user idle time after which the command can run in seconds (default: 300 seconds).\n");
     printf("  --start-monitor-after, -a <delay_in_ms>   Set an initial delay in milliseconds before monitoring starts. During this time command runs unrestricted. This helps to catch quick errors. (default: 300 ms).\n");
+    printf("  --pause-method, -m <method>               Specify method for pausing the command when user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (can not be ignored). (default: SIGTSTP).\n");
     printf("  --verbose, -v                             Enable verbose output for monitoring.\n");
     printf("  --debug                                   Enable debugging output.\n");
     printf("  --quiet, -q                               Suppress all program output except errors.\n");
@@ -81,8 +84,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
     int option;
     while ((option = getopt_long(argc, argv, "+hvqt:a:V", long_options, NULL)) != -1) {
         switch (option) {
-            case 't': {
-
+            case 't':
                 long timeout_arg_value = strtol(optarg, NULL, 10);
                 if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE ||
                     timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
@@ -93,8 +95,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                 }
                 user_idle_timeout_ms = timeout_arg_value * 1000;
                 break;
-            }
-            case 'a': {
+            case 'a':
                 start_monitor_after_ms = strtol(optarg, NULL, 10);
 
                 if (start_monitor_after_ms < START_MONITOR_AFTER_MIN_SUPPORTED_VALUE || errno != 0) {
