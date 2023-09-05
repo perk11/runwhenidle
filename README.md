@@ -4,7 +4,7 @@ runwhenidle is a Linux utility that can be used to run a computationally or IO-i
 in front of the computer, pausing it once the user is back, resuming once the user left, often without requiring adaptation from the program being ran.
 
 
-runwhenidle runs a command given to it, pauses it if the user is active by sending SIGTSTP to the command, 
+runwhenidle runs a command given to it, pauses it if the user is active by sending SIGTSTP (or optionally SIGSTOP) to the command, 
 when the user activity stops, runwhenidle resumes the command by sending it SIGCONT signal.
 It then checks once per second if user activity has resumed, and once it is, pauses the command again.
 

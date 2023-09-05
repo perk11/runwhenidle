@@ -82,7 +82,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
 
     // Parse command line options
     int option;
-    while ((option = getopt_long(argc, argv, "+hvqt:a:V", long_options, NULL)) != -1) {
+    while ((option = getopt_long(argc, argv, "+hvqt:a:m:V", long_options, NULL)) != -1) {
         switch (option) {
             case 't':
                 long timeout_arg_value = strtol(optarg, NULL, 10);
@@ -106,7 +106,29 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                     exit(1);
                 }
                 break;
-            }
+            case 'm':
+                char *method = strdup(optarg);
+                for (int i = 0; i<sizeof(method); i++) {
+                    method[i] = toupper(method[i]);
+                }
+                for (int i = 1;  pause_method_string[i] != NULL; i++) {
+                    if (strcmp(pause_method_string[i], method) == 0) {
+                        pause_method = i;
+                        break;
+                    }
+                }
+                if (!pause_method) {
+                    fprintf_error("Invalid value for --pause-method|m argument: \"%s\". Supported values: ", optarg);
+                    for (int i=1; pause_method_string[i] != NULL; i++) {
+                        fprintf_error(pause_method_string[i]);
+                        if (pause_method_string[i+1] != NULL) {
+                            fprintf_error(", ");
+                         }
+                    }
+                    fprintf_error("\n");
+                    exit(1);
+                }
+                break;
             case 'V':
                 print_version();
                 exit(0);
@@ -128,7 +150,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                 exit(1);
         }
     }
-    if (debug) fprintf(stderr, "verbose: %i, debug: %i, quiet: %i, user_idle_timeout_ms: %i, start_monitoring_after_ms: %lld\n", verbose, debug, quiet, user_idle_timeout_ms, start_monitor_after_ms);
+    if (debug) fprintf(stderr, "verbose: %i, debug: %i, quiet: %i, pause_method:%i, user_idle_timeout_ms: %i, start_monitoring_after_ms: %lld\n", verbose, debug, quiet, pause_method, user_idle_timeout_ms, start_monitor_after_ms);
     if (optind >= argc) {
         print_usage(argv[0]);
         exit(1);

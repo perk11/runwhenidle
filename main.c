@@ -10,6 +10,7 @@
 #include "tty_utils.h"
 #include "process_handling.h"
 #include "arguments_parsing.h"
+#include "pause_methods.h"
 
 #ifndef VERSION
 #define VERSION 'unkown'
@@ -19,11 +20,17 @@ int verbose = 0;
 int quiet = 0;
 int debug = 0;
 int monitoring_started = 0;
+enum pause_method pause_method;
 long start_monitor_after_ms = 300;
 long unsigned user_idle_timeout_ms = 300000;
 long long polling_interval_ms = 1000;
 const long long POLLING_INTERVAL_BEFORE_STARTING_MONITORING_MS = 100;
-
+const char *pause_method_string[] = {
+                //order must match order in pause_method enum
+                [PAUSE_METHOD_SIGTSTP] = "SIGTSTP",
+                [PAUSE_METHOD_SIGSTOP] = "SIGSTOP",
+                NULL // Sentinel value to indicate the end of the array
+};
 int xscreensaver_is_available;
 Display *x_display;
 XScreenSaverInfo *xscreensaver_info;

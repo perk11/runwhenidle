@@ -7,6 +7,7 @@
 
 #include "process_handling.h"
 #include "output_settings.h"
+#include "pause_methods.h"
 
 pid_t run_shell_command(const char *shell_command_to_run) {
     if (verbose) {
@@ -64,7 +65,17 @@ void pause_command(pid_t pid) {
     if (!quiet) {
         printf("User activity is detected, pausing PID %i\n", pid);
     }
-    send_signal_to_pid(pid, SIGTSTP, "SIGTSTP");
+    switch (pause_method) {
+        case PAUSE_METHOD_SIGTSTP:
+            send_signal_to_pid(pid, SIGTSTP, "SIGTSTP");
+            break;
+        case PAUSE_METHOD_SIGSTOP:
+            send_signal_to_pid(pid, SIGSTOP, "SIGSTOP");
+            break;
+        default:
+            fprintf_error("Unsupported paused method: %i", pause_method );
+            exit(1);
+    }
 }
 
 void resume_command(pid_t pid) {
