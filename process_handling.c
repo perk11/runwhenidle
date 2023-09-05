@@ -8,6 +8,7 @@
 #include "process_handling.h"
 #include "output_settings.h"
 #include "pause_methods.h"
+#include "tty_utils.h"
 
 pid_t run_shell_command(const char *shell_command_to_run) {
     if (verbose) {
