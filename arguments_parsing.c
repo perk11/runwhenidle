@@ -86,7 +86,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                 long timeout_arg_value = strtol(optarg, NULL, 10);
                 if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE ||
                     timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
-                    fprintf_error("Invalid timeout value: \"%s\". Range supported: %ld-%ld", optarg,
+                    fprintf_error("Invalid timeout value: \"%s\". Range supported: %ld-%ld\n", optarg,
                                   TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
                     print_usage(argv[0]);
                     exit(1);
@@ -133,12 +133,12 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
         exit(1);
     }
     if (quiet && debug) {
-        fprintf_error("Incompatible options --quiet|-q and --debug used");
+        fprintf_error("Incompatible options --quiet|-q and --debug used\n");
         print_usage(argv[0]);
         exit(1);
     }
     if (quiet && verbose) {
-        fprintf_error("Incompatible options --quiet|-q and --verbose|-v used");
+        fprintf_error("Incompatible options --quiet|-q and --verbose|-v used\n");
         print_usage(argv[0]);
         exit(1);
     }

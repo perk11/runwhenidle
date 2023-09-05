@@ -12,9 +12,7 @@ void print_colored_prefix(FILE *stream, const char *color, bool is_tty) {
 
 void print_colored_suffix(FILE *stream, bool is_tty) {
     if (is_tty) {
-        fprintf(stream, "\033[0m\n");
-    } else {
-        fprintf(stream, "\n");
+        fprintf(stream, "\033[0m");
     }
 }
 

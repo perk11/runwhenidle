@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
     x_display = XOpenDisplay(NULL);
     if (!x_display) {
         xscreensaver_is_available = 0;
-        fprintf_error("Couldn't open an X11 display!");
+        fprintf_error("Couldn't open an X11 display!\n");
     } else {
         int xscreensaver_event_base, xscreensaver_error_base; //not sure why these are needed
         xscreensaver_is_available = XScreenSaverQueryExtension(x_display, &xscreensaver_event_base,
@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!xscreensaver_is_available) {
-        fprintf_error("No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.");
+        fprintf_error("No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.\n");
     }
 
     pid = run_shell_command(shell_command_to_run);
