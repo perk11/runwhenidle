@@ -18,8 +18,9 @@ to handle the signal.
 ## Installation
 
 **Ubuntu and Debian**: Download the deb file attached to the [latest release](https://github.com/perk11/runwhenidle/releases/latest).
+**Arch**: Available in AUR: https://aur.archlinux.org/packages/runwhenidle
 
-Other Distros: You will need to compile runwhenidle yourself. AUR package is planned.
+Other Distros: You will need to compile runwhenidle yourself.
 
 ## Compiling
 
