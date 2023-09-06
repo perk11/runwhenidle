@@ -1,7 +1,7 @@
 # runwhenidle
 
 runwhenidle is a Linux utility that can be used to run a computationally or IO-intensive program when user is not
-in front of the computer, pausing it once the user is back, resuming once the user left, often without requiring adaptation from the program being ran.
+in front of the computer, pausing it once the user is back, resuming once the user left, often without requiring adaptation from the program being run.
 
 
 runwhenidle runs a command given to it, pauses it if the user is active by sending SIGTSTP (or optionally SIGSTOP) to the command, 
@@ -24,7 +24,7 @@ Other Distros: You will need to compile runwhenidle yourself.
 
 ## Compiling
 
-Make sure you have `gcc`, `make` and `libxss-dev` installed. Run `make release`. This should produce a binary file `runwhenidle` in the project directory.
+Make sure you have `gcc`, `make`, `git` and `libxss-dev` installed. Run `make release`. This should produce a binary file `runwhenidle` in the project directory.
 
 If you want to install it system-wide, run `sudo make install` or simply `sudo cp ./runwhenidle /usr/bin`. 
 
