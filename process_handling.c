@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -35,18 +37,10 @@ pid_t run_shell_command(const char *shell_command_to_run) {
  *
  * @param signal_name The name of the signal being sent.
  * @param pid         The process ID of the target process.
+ * @param kill_errno   errno of kill function
  */
-void handle_kill_error(char *signal_name, pid_t pid) {
-    const char *reason;
-    if (errno == EPERM) {
-        reason = "Operation not permitted";
-    } else if (errno == EINVAL) {
-        reason = "Invalid signal number";
-    } else if (errno == ESRCH) {
-        reason = "No such process";
-    }
-
-    fprintf(stderr, "Failed to send %s signal to PID %i: %s\n", signal_name, pid, reason);
+void handle_kill_error(char *signal_name, pid_t pid, int kill_errno) {
+    fprintf(stderr, "Failed to send %s signal to PID %i: %s\n", signal_name, pid, strerror(kill_errno));
 }
 
 void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
@@ -55,7 +49,7 @@ void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
     }
     int kill_result = kill(pid, signal);
     if (kill_result == -1) {
-        handle_kill_error(signal_name, pid);
+        handle_kill_error(signal_name, pid, errno);
         exit(1);
     } else {
         if (debug) fprintf(stderr, "kill function sending %s returned %i\n",signal_name, kill_result);
