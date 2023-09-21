@@ -111,19 +111,19 @@ long long pause_or_resume_command_depending_on_user_activity(
             command_was_paused_this_iteration = 1;
         }
         sleep_time_ms = user_idle_timeout_ms - user_idle_time_ms;
-        if (debug) fprintf(stderr,"Target sleep time: %lums\n", sleep_time_ms);
+        if (debug) fprintf(stderr,"Target sleep time: %llums\n", sleep_time_ms);
         if (command_was_paused_this_iteration) {
             if (debug) fprintf(stderr, "Command was paused this iteration\n");
             struct timespec time_before_sleep;
             clock_gettime(CLOCK_MONOTONIC, &time_before_sleep);
             long long pausing_time_ms = get_elapsed_time_ms(time_when_starting_to_pause, time_before_sleep);
-            if (debug) fprintf(stderr, "Target sleep time before taking into account time it took to pause: %lums, time it took to pause: %lums\n", sleep_time_ms, pausing_time_ms);
+            if (debug) fprintf(stderr, "Target sleep time before taking into account time it took to pause: %lldms, time it took to pause: %lldms\n", sleep_time_ms, pausing_time_ms);
             sleep_time_ms = sleep_time_ms - pausing_time_ms;
 
         }
 
         if (sleep_time_ms < polling_interval_ms) {
-            if (debug) fprintf(stderr, "Target sleep time %lums is less than polling interval %lums, resetting it to polling interval\n", sleep_time_ms, polling_interval_ms);
+            if (debug) fprintf(stderr, "Target sleep time %lldms is less than polling interval %lldms, resetting it to polling interval\n", sleep_time_ms, polling_interval_ms);
             sleep_time_ms = polling_interval_ms;
         }
         if (verbose) {
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
                     sleep_time_ms,
                     user_idle_time_ms);
         }
-        if (debug) fprintf(stderr, "Sleeping for %lums\n", sleep_time_ms);
+        if (debug) fprintf(stderr, "Sleeping for %lldms\n", sleep_time_ms);
         sleep_for_milliseconds(sleep_time_ms);
     }
 }

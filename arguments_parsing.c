@@ -150,7 +150,15 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                 exit(1);
         }
     }
-    if (debug) fprintf(stderr, "verbose: %i, debug: %i, quiet: %i, pause_method:%i, user_idle_timeout_ms: %i, start_monitoring_after_ms: %lld\n", verbose, debug, quiet, pause_method, user_idle_timeout_ms, start_monitor_after_ms);
+    if (debug) fprintf(stderr,
+                       "verbose: %i, debug: %i, quiet: %i, pause_method: %i, user_idle_timeout_ms: %lu, start_monitoring_after_ms: %ld\n",
+                       verbose,
+                       debug,
+                       quiet,
+                       pause_method,
+                       user_idle_timeout_ms,
+                       start_monitor_after_ms
+                       );
     if (optind >= argc) {
         print_usage(argv[0]);
         exit(1);
