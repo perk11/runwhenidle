@@ -61,7 +61,7 @@ Run the `cat /dev/zero` command and pause it while user is active. `-q` option m
 ### Known issues
 
 1. Wayland support. runwhenidle currently doesn't work without XScreenSaver, but Wayland support should be possible and is planned (at least for the DEs supporting ext-idle-notify, which now both Gnome and KDE support).
-2. The signal isn't send to child processes, so if your process starts new processes, they will not receive the signal and will continue running. Unofrtunately there is no universal solution for this, but I plan to look at what needs to be done to improve this behavior.
+2. The signal isn't sent to child processes, so if your process starts new processes, they will not receive the signal and will continue running. Unofrtunately there is no universal solution for this, but I plan to look at what needs to be done to improve this behavior.
 3. When running from cron, runwhenidle doesn't work. This is now resolved, but you need to use --pause-method=SIGSTOP parameter. For some reason, cron is launching things in a way that ignores SIGTSTP signal.
 
 ### Building Ubuntu/Debian package
