@@ -19,13 +19,13 @@ const long START_MONITOR_AFTER_MIN_SUPPORTED_VALUE = 0;
 void print_usage(char *binary_name) {
     printf("Usage: %s [OPTIONS] shell_command_to_run [shell_command_arguments]\n", binary_name);
     printf("\nOptions:\n");
-    printf("  --timeout|-t <seconds>  Set the user idle time after which the command can run in seconds (default: 300 seconds).\n");
-    printf("  --start-monitor-after|-a <ms>   Set an initial delay in milliseconds before monitoring starts. During this time command runs unrestricted. This helps to catch quick errors. (default: 300 ms).\n");
-    printf("  --pause-method|-m <method>               Specify method for pausing the command when user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (can not be ignored). (default: SIGTSTP).\n");
-    printf("  --verbose|-v                             Enable verbose output for monitoring.\n");
-    printf("  --debug                                   Enable debugging output.\n");
-    printf("  --quiet|-q                               Suppress all output from %s except errors and only display output from the command that is running\n", binary_name);
-    printf("  --version|-V                             Print the program version information.\n");
+    printf("  --timeout|-t <seconds>           Set the user idle time after which the command can run in seconds (default: 300 seconds).\n");
+    printf("  --start-monitor-after|-a <ms>    Set an initial delay in milliseconds before monitoring starts. During this time command runs unrestricted. This helps to catch quick errors. (default: 300 ms).\n");
+    printf("  --pause-method|-m <method>       Specify method for pausing the command when user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (can not be ignored). (default: SIGTSTP).\n");
+    printf("  --verbose|-v                     Enable verbose output for monitoring.\n");
+    printf("  --debug                          Enable debugging output.\n");
+    printf("  --quiet|-q                       Suppress all output from %s except errors and only display output from the command that is running\n", binary_name);
+    printf("  --version|-V                     Print the program version information.\n");
 }
 void print_version() {
     printf("runwhenidle %s\n", VERSION);
