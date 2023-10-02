@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <dirent.h>
 
 #include "process_handling.h"
 #include "output_settings.h"
@@ -41,6 +42,52 @@ pid_t run_shell_command(const char *shell_command_to_run) {
 void handle_kill_error(char *signal_name, pid_t pid, int kill_errno) {
     fprintf(stderr, "Failed to send %s signal to PID %i: %s\n", signal_name, pid, strerror(kill_errno));
 }
+typedef struct ProcessNode {
+    int process_id;
+    struct ProcessNode* next_node;
+} ProcessNode;
+
+
+ProcessNode* get_child_processes_linked_list(int parent_process_id) {
+    DIR *proc_directory = opendir("/proc/");
+    if (proc_directory == NULL) {
+        fprintf_error("Could not open /proc directory");
+        exit(1);
+    }
+
+    ProcessNode *head_node = NULL, **tail_node = &head_node;
+    struct dirent *directory_entry;
+    char stat_file_path[64];
+    int process_id, found_parent_process_id;
+    FILE *stat_file;
+
+    while ((directory_entry = readdir(proc_directory)) != NULL) {
+        if (sscanf(directory_entry->d_name, "%d", &process_id) != 1) continue;
+
+        snprintf(stat_file_path, sizeof(stat_file_path), "/proc/%d/stat", process_id);
+        stat_file = fopen(stat_file_path, "r");
+        if (stat_file == NULL) continue;
+
+        fscanf(stat_file, "%*d %*s %*c %d", &found_parent_process_id);
+        fclose(stat_file);
+
+        if (found_parent_process_id != parent_process_id) continue;
+
+        ProcessNode *new_node = (ProcessNode *)malloc(sizeof(ProcessNode));
+        if (new_node == NULL) {
+            perror("Memory allocation failed");
+            exit(1);
+        }
+
+        new_node->process_id = process_id;
+        new_node->next_node = NULL;
+        *tail_node = new_node;
+        tail_node = &(new_node->next_node);
+    }
+
+    closedir(proc_directory);
+    return head_node;
+}
 
 void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
     if (debug) {
@@ -57,7 +104,7 @@ void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
 
 void pause_command(pid_t pid) {
     if (!quiet) {
-        printf("User activity is detected, pausing PID %i\n", pid);
+        printf("Pausing PID %i\n", pid);
     }
     switch (pause_method) {
         case PAUSE_METHOD_SIGTSTP:
@@ -72,6 +119,21 @@ void pause_command(pid_t pid) {
     }
 }
 
+void pause_command_recursively(pid_t pid)
+{
+    pause_command(pid);
+    ProcessNode* child_process_ids = get_child_processes_linked_list(pid);
+    ProcessNode* current_node = child_process_ids;
+    ProcessNode* previous_node;
+
+    while (current_node) {
+        pause_command(current_node->process_id);
+        previous_node = current_node;
+        current_node = current_node->next_node;
+        free(previous_node);
+    }
+}
+
 void resume_command(pid_t pid) {
     if (!quiet) {
         printf("Resuming PID %i\n", pid);
@@ -79,6 +141,20 @@ void resume_command(pid_t pid) {
     send_signal_to_pid(pid, SIGCONT, "SIGCONT");
 }
 
+void resume_command_recursively(pid_t pid)
+{
+    resume_command(pid);
+    ProcessNode* child_process_ids = get_child_processes_linked_list(pid);
+    ProcessNode* current_node = child_process_ids;
+    ProcessNode* previous_node;
+
+    while (current_node) {
+        resume_command(current_node->process_id);
+        previous_node = current_node;
+        current_node = current_node->next_node;
+        free(previous_node);
+    }
+}
 
 int wait_for_pid_to_exit_synchronously(int pid) {
     int status;

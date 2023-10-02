@@ -58,7 +58,7 @@ int handle_interruption() {
                     "Since command was previously paused, we will try to resume it now to be able to handle the interruption before exiting\n"
             );
         }
-        resume_command(pid);
+        resume_command_recursively(pid);
     }
     //Wait for the child process to complete
     return wait_for_pid_to_exit_synchronously(pid);
@@ -93,7 +93,7 @@ long long pause_or_resume_command_depending_on_user_activity(
                 printf("Lack of user activity detected. ");
                 //intentionally no new line here, resume_command will print the rest of the message.
             }
-            resume_command(pid);
+            resume_command_recursively(pid);
             command_paused = 0;
         }
     } else {
@@ -105,7 +105,7 @@ long long pause_or_resume_command_depending_on_user_activity(
             if (verbose) {
                 fprintf(stderr, "Idle time: %lums.\n", user_idle_time_ms);
             }
-            pause_command(pid);
+            pause_command_recursively(pid);
             if (debug) fprintf(stderr,"Command paused\n");
             command_paused = 1;
             command_was_paused_this_iteration = 1;

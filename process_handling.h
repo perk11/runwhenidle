@@ -9,11 +9,19 @@
  */
 void send_signal_to_pid(pid_t pid, int signal, char *signal_name);
 /**
- * Pauses a specified process by sending the SIGTSTP signal.
+ * Pauses a specified process using pause method specified in pause_method variable
  *
  * @param pid The process ID of the target process.
  */
 void pause_command(pid_t pid);
+
+/**
+ * Pauses a specified process and all child processes
+ *
+ * @param pid The process ID of the target process.
+ */
+void pause_command_recursively(pid_t pid);
+
 
 /**
  * Resumes a specified process by sending the SIGCONT signal.
@@ -21,6 +29,14 @@ void pause_command(pid_t pid);
  * @param pid The process ID of the target process.
  */
 void resume_command(pid_t pid);
+
+/**
+ * Resumes a specified process and all child processes by sending SIGCONT signal to each process.
+ *
+ * @param pid The process ID of the target process.
+ */
+void resume_command_recursively(pid_t pid);
+
 
 /**
  * Executes a shell command in a new process and returns the process ID of the child process.
