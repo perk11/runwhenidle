@@ -6,6 +6,7 @@
 #define RUNWHENIDLE_PAUSE_METHODS_H
 
 enum pause_method {
+    PAUSE_METHOD_UNKNOWN = 0,
     //order must match order in pause_method_string
     PAUSE_METHOD_SIGTSTP = 1,
     PAUSE_METHOD_SIGSTOP = 2,

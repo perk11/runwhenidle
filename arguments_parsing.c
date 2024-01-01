@@ -108,22 +108,23 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                 break;
             case 'm':
                 char *method = strdup(optarg);
-                for (int i = 0; i<sizeof(method); i++) {
+                for (int i = 0; i < sizeof(method); i++) {
                     method[i] = toupper(method[i]);
                 }
-                for (int i = 1;  pause_method_string[i] != NULL; i++) {
+                pause_method = PAUSE_METHOD_UNKNOWN;
+                for (int i = 1; pause_method_string[i] != NULL; i++) {
                     if (strcmp(pause_method_string[i], method) == 0) {
                         pause_method = i;
                         break;
                     }
                 }
-                if (!pause_method) {
+                if (pause_method == PAUSE_METHOD_UNKNOWN) {
                     fprintf_error("Invalid value for --pause-method|m argument: \"%s\". Supported values: ", optarg);
-                    for (int i=1; pause_method_string[i] != NULL; i++) {
+                    for (int i = 1; pause_method_string[i] != NULL; i++) {
                         fprintf_error(pause_method_string[i]);
-                        if (pause_method_string[i+1] != NULL) {
+                        if (pause_method_string[i + 1] != NULL) {
                             fprintf_error(", ");
-                         }
+                        }
                     }
                     fprintf_error("\n");
                     exit(1);
