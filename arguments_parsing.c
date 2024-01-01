@@ -84,7 +84,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
     int option;
     while ((option = getopt_long(argc, argv, "+hvqt:a:m:V", long_options, NULL)) != -1) {
         switch (option) {
-            case 't':
+            case 't': {
                 long timeout_arg_value = strtol(optarg, NULL, 10);
                 if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE ||
                     timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
@@ -95,6 +95,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                 }
                 user_idle_timeout_ms = timeout_arg_value * 1000;
                 break;
+            }
             case 'a':
                 start_monitor_after_ms = strtol(optarg, NULL, 10);
 
@@ -106,7 +107,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                     exit(1);
                 }
                 break;
-            case 'm':
+            case 'm': {
                 char *method = strdup(optarg);
                 for (int i = 0; i < sizeof(method); i++) {
                     method[i] = toupper(method[i]);
@@ -130,6 +131,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                     exit(1);
                 }
                 break;
+            }
             case 'V':
                 print_version();
                 exit(0);
