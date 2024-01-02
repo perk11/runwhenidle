@@ -93,7 +93,9 @@ ProcessNode* get_child_processes_linked_list(int initial_parent_process_id) {
         if (stat_file == NULL) continue;
 
         //write parent PID into parent_process_id
-        fscanf(stat_file, "%*d %*s %*c %d", &parent_process_id);
+        if (!fscanf(stat_file, "%*d %*s %*c %d", &parent_process_id)) {
+            fprintf_error("Failed to parse %s", stat_file);
+        }
         fclose(stat_file);
 
         all_processes[total_processes].process_id = process_id;
