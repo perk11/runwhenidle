@@ -26,10 +26,10 @@ long unsigned user_idle_timeout_ms = 300000;
 long long polling_interval_ms = 1000;
 const long long POLLING_INTERVAL_BEFORE_STARTING_MONITORING_MS = 100;
 const char *pause_method_string[] = {
-                //order must match order in pause_method enum
-                [PAUSE_METHOD_SIGTSTP] = "SIGTSTP",
-                [PAUSE_METHOD_SIGSTOP] = "SIGSTOP",
-                NULL // Sentinel value to indicate the end of the array
+        //order must match order in pause_method enum
+        [PAUSE_METHOD_SIGTSTP] = "SIGTSTP",
+        [PAUSE_METHOD_SIGSTOP] = "SIGSTOP",
+        NULL // Sentinel value to indicate the end of the array
 };
 int xscreensaver_is_available;
 Display *x_display;
@@ -41,8 +41,7 @@ volatile sig_atomic_t command_paused = 0;
 pid_t pid;
 
 
-long unsigned query_user_idle_time()
-{
+long unsigned query_user_idle_time() {
     if (xscreensaver_is_available) {
         XScreenSaverQueryInfo(x_display, DefaultRootWindow(x_display), xscreensaver_info);
         return xscreensaver_info->idle;
@@ -63,6 +62,7 @@ int handle_interruption() {
     //Wait for the child process to complete
     return wait_for_pid_to_exit_synchronously(pid);
 }
+
 void sigint_handler(int signum) {
     if (!quiet) {
         printf("Received SIGINT, sending SIGINT to the command and waiting for it to finish.\n");
@@ -70,6 +70,7 @@ void sigint_handler(int signum) {
     send_signal_to_pid(pid, signum, "SIGINT");
     interruption_received = 1;
 }
+
 void sigterm_handler(int signum) {
     if (!quiet) {
         printf("Received SIGTERM, sending SIGTERM to the command and waiting for it to finish.\n");
@@ -83,13 +84,16 @@ long long pause_or_resume_command_depending_on_user_activity(
         long long sleep_time_ms,
         unsigned long user_idle_time_ms) {
     if (user_idle_time_ms >= user_idle_timeout_ms) {
-        if (debug) fprintf(stderr,"Idle time: %lums, idle timeout: %lums, user is inactive\n", user_idle_time_ms, user_idle_timeout_ms);
+        if (debug)
+            fprintf(stderr, "Idle time: %lums, idle timeout: %lums, user is inactive\n", user_idle_time_ms,
+                    user_idle_timeout_ms);
         if (command_paused) {
             sleep_time_ms = polling_interval_ms; //reset to default value
             if (verbose) {
-                fprintf(stderr, "Idle time: %lums, idle timeout: %lums, resuming command\n", user_idle_time_ms, user_idle_timeout_ms);
+                fprintf(stderr, "Idle time: %lums, idle timeout: %lums, resuming command\n", user_idle_time_ms,
+                        user_idle_timeout_ms);
             }
-            if (!quiet){
+            if (!quiet) {
                 printf("Lack of user activity detected. ");
                 //intentionally no new line here, resume_command will print the rest of the message.
             }
@@ -106,24 +110,30 @@ long long pause_or_resume_command_depending_on_user_activity(
                 fprintf(stderr, "Idle time: %lums.\n", user_idle_time_ms);
             }
             pause_command_recursively(pid);
-            if (debug) fprintf(stderr,"Command paused\n");
+            if (debug) fprintf(stderr, "Command paused\n");
             command_paused = 1;
             command_was_paused_this_iteration = 1;
         }
         sleep_time_ms = user_idle_timeout_ms - user_idle_time_ms;
-        if (debug) fprintf(stderr,"Target sleep time: %llums\n", sleep_time_ms);
+        if (debug) fprintf(stderr, "Target sleep time: %llums\n", sleep_time_ms);
         if (command_was_paused_this_iteration) {
             if (debug) fprintf(stderr, "Command was paused this iteration\n");
             struct timespec time_before_sleep;
             clock_gettime(CLOCK_MONOTONIC, &time_before_sleep);
             long long pausing_time_ms = get_elapsed_time_ms(time_when_starting_to_pause, time_before_sleep);
-            if (debug) fprintf(stderr, "Target sleep time before taking into account time it took to pause: %lldms, time it took to pause: %lldms\n", sleep_time_ms, pausing_time_ms);
+            if (debug)
+                fprintf(stderr,
+                        "Target sleep time before taking into account time it took to pause: %lldms, time it took to pause: %lldms\n",
+                        sleep_time_ms, pausing_time_ms);
             sleep_time_ms = sleep_time_ms - pausing_time_ms;
 
         }
 
         if (sleep_time_ms < polling_interval_ms) {
-            if (debug) fprintf(stderr, "Target sleep time %lldms is less than polling interval %lldms, resetting it to polling interval\n", sleep_time_ms, polling_interval_ms);
+            if (debug)
+                fprintf(stderr,
+                        "Target sleep time %lldms is less than polling interval %lldms, resetting it to polling interval\n",
+                        sleep_time_ms, polling_interval_ms);
             sleep_time_ms = polling_interval_ms;
         }
         if (verbose) {
@@ -156,7 +166,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (!xscreensaver_is_available) {
-        fprintf_error("No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.\n");
+        fprintf_error(
+                "No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.\n");
     }
 
     pid = run_shell_command(shell_command_to_run);

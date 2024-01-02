@@ -2,12 +2,10 @@
 #include <errno.h>
 #include "sleep_utils.h"
 
-int sleep_for_milliseconds(long milliseconds)
-{
+int sleep_for_milliseconds(long milliseconds) {
     struct timespec ts;
 
-    if (milliseconds < 0)
-    {
+    if (milliseconds < 0) {
         errno = EINVAL;
         return -1;
     }

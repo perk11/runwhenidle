@@ -11,4 +11,5 @@ extern long unsigned user_idle_timeout_ms;
  * @return A character pointer to the remaining command line arguments as a single string.
  */
 char *parse_command_line_arguments(int argc, char *argv[]);
+
 #endif //RUNWHENIDLE_ARGUMENTS_PARSING_H

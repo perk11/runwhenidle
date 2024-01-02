@@ -1,14 +1,16 @@
 # runwhenidle
 
 runwhenidle is a Linux utility that can be used to run a computationally or IO-intensive program when user is not
-in front of the computer, pausing it once the user is back, resuming once the user left, often without requiring adaptation from the program being run.
+in front of the computer, pausing it once the user is back, resuming once the user left, often without requiring
+adaptation from the program being run.
 
-
-runwhenidle runs a command given to it, pauses it if the user is active by sending SIGTSTP (or optionally SIGSTOP) to the command, 
+runwhenidle runs a command given to it, pauses it if the user is active by sending SIGTSTP (or optionally SIGSTOP) to
+the command,
 when the user activity stops, runwhenidle resumes the command by sending it SIGCONT signal.
 It then checks once per second if user activity has resumed, and once it is, pauses the command again.
 
-runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened therefore a running X server is required.
+runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened therefore a running X server is
+required.
 Wayland is not currently supported.
 
 If runwhenidle receives an interruption signal (SIGINT or SIGTERM), it will pass that signal to the command it is
@@ -17,7 +19,8 @@ to handle the signal.
 
 ## Installation
 
-**Ubuntu and Debian**: Download the deb file attached to the [latest release](https://github.com/perk11/runwhenidle/releases/latest).
+**Ubuntu and Debian**: Download the deb file attached to
+the [latest release](https://github.com/perk11/runwhenidle/releases/latest).
 
 **Arch**: Available in AUR: https://aur.archlinux.org/packages/runwhenidle
 
@@ -25,9 +28,10 @@ Other Distros: You will need to compile runwhenidle yourself.
 
 ## Compiling
 
-Make sure you have `gcc`, `make`, `git` and `libxss-dev` installed. Run `make release`. This should produce a binary file `runwhenidle` in the project directory.
+Make sure you have `gcc`, `make`, `git` and `libxss-dev` installed. Run `make release`. This should produce a binary
+file `runwhenidle` in the project directory.
 
-If you want to install it system-wide, run `sudo make install` or simply `sudo cp ./runwhenidle /usr/bin`. 
+If you want to install it system-wide, run `sudo make install` or simply `sudo cp ./runwhenidle /usr/bin`.
 
 ## Usage
 
@@ -46,7 +50,7 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 | `--version\| -V`                  | Print the program version information.                                                                                                                     |               |
 
 ### Example 1:
-    
+
     runwhenidle -t 100 -v cp /filea /fileb
 
 Run the `cp` command and pause it while user is active. When user is inactive for 100 seconds, resume the command.
@@ -56,15 +60,21 @@ Output debug information to stderr.
 
     runwhenidle --timeout=300 -q cat /dev/zero
 
-Run the `cat /dev/zero` command and pause it while user is active. `-q` option makes sure runwhenidle doesn't output anything other than the output of `cat /dev/zero`. 
+Run the `cat /dev/zero` command and pause it while user is active. `-q` option makes sure runwhenidle doesn't output
+anything other than the output of `cat /dev/zero`.
 
 ### Known issues
 
-1. Wayland support. runwhenidle currently doesn't work without XScreenSaver, but Wayland support should be possible and is planned (at least for the DEs supporting ext-idle-notify, which now both Gnome and KDE support).
-2. The signal isn't sent to child processes, so if your process starts new processes, they will not receive the signal and will continue running. Unofrtunately there is no universal solution for this, but I plan to look at what needs to be done to improve this behavior.
-3. When running from cron, runwhenidle doesn't work. This is now resolved, but you need to use --pause-method=SIGSTOP parameter. For some reason, cron is launching things in a way that ignores SIGTSTP signal.
+1. Wayland support. runwhenidle currently doesn't work without XScreenSaver, but Wayland support should be possible and
+   is planned (at least for the DEs supporting ext-idle-notify, which now both Gnome and KDE support).
+2. The signal isn't sent to child processes, so if your process starts new processes, they will not receive the signal
+   and will continue running. Unofrtunately there is no universal solution for this, but I plan to look at what needs to
+   be done to improve this behavior.
+3. When running from cron, runwhenidle doesn't work. This is now resolved, but you need to use --pause-method=SIGSTOP
+   parameter. For some reason, cron is launching things in a way that ignores SIGTSTP signal.
 
 ### Building Ubuntu/Debian package
+
 Make sure you have docker installed and run:
 
     make debian-package

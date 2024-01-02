@@ -45,14 +45,15 @@ void handle_kill_error(char *signal_name, pid_t pid, int kill_errno) {
 
 typedef struct ProcessNode {
     int process_id;
-    struct ProcessNode* next_node;
+    struct ProcessNode *next_node;
 } ProcessNode;
 
 typedef struct ProcessInfo {
     int process_id;
     int parent_process_id;
 } ProcessInfo;
-ProcessNode* get_child_processes_linked_list(int initial_parent_process_id) {
+
+ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
     DIR *proc_directory = opendir("/proc/");
     if (proc_directory == NULL) {
         fprintf_error("Could not open /proc directory");
@@ -62,7 +63,7 @@ ProcessNode* get_child_processes_linked_list(int initial_parent_process_id) {
     // Stage 1: Read all process and parent IDs into an array
     const int NUMBER_OF_PROCESSES_INITIALLY_ALLOCATED = 4096;
     int processes_allocated = NUMBER_OF_PROCESSES_INITIALLY_ALLOCATED;
-    ProcessInfo* all_processes = malloc(processes_allocated * sizeof (ProcessInfo));
+    ProcessInfo *all_processes = malloc(processes_allocated * sizeof(ProcessInfo));
     int total_processes = 0;
 
     struct dirent *directory_entry;
@@ -72,7 +73,7 @@ ProcessNode* get_child_processes_linked_list(int initial_parent_process_id) {
     while ((directory_entry = readdir(proc_directory)) != NULL) {
         if (total_processes == processes_allocated) {
             processes_allocated *= 2;
-            ProcessInfo* new_all_processes = realloc(all_processes, processes_allocated * sizeof(ProcessInfo));
+            ProcessInfo *new_all_processes = realloc(all_processes, processes_allocated * sizeof(ProcessInfo));
             if (!new_all_processes) {
                 perror("Failed to allocate memory while reading processes list");
                 exit(1);
@@ -146,14 +147,14 @@ ProcessNode* get_child_processes_linked_list(int initial_parent_process_id) {
 
 void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
     if (debug) {
-        printf("Sending %s to %i\n",signal_name, pid);
+        printf("Sending %s to %i\n", signal_name, pid);
     }
     int kill_result = kill(pid, signal);
     if (kill_result == -1) {
         handle_kill_error(signal_name, pid, errno);
         exit(1);
     } else {
-        if (debug) fprintf(stderr, "kill function sending %s returned %i\n",signal_name, kill_result);
+        if (debug) fprintf(stderr, "kill function sending %s returned %i\n", signal_name, kill_result);
     }
 }
 
@@ -174,12 +175,11 @@ void pause_command(pid_t pid) {
     }
 }
 
-void pause_command_recursively(pid_t pid)
-{
+void pause_command_recursively(pid_t pid) {
     pause_command(pid);
-    ProcessNode* child_process_ids = get_child_processes_linked_list(pid);
-    ProcessNode* current_node = child_process_ids;
-    ProcessNode* previous_node;
+    ProcessNode *child_process_ids = get_child_processes_linked_list(pid);
+    ProcessNode *current_node = child_process_ids;
+    ProcessNode *previous_node;
 
     while (current_node) {
         pause_command(current_node->process_id);
@@ -196,12 +196,11 @@ void resume_command(pid_t pid) {
     send_signal_to_pid(pid, SIGCONT, "SIGCONT");
 }
 
-void resume_command_recursively(pid_t pid)
-{
+void resume_command_recursively(pid_t pid) {
     resume_command(pid);
-    ProcessNode* child_process_ids = get_child_processes_linked_list(pid);
-    ProcessNode* current_node = child_process_ids;
-    ProcessNode* previous_node;
+    ProcessNode *child_process_ids = get_child_processes_linked_list(pid);
+    ProcessNode *current_node = child_process_ids;
+    ProcessNode *previous_node;
 
     while (current_node) {
         resume_command(current_node->process_id);

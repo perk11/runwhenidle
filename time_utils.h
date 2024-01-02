@@ -1,5 +1,6 @@
 #ifndef RUNWHENIDLE_TIME_UTILS_H
 #define RUNWHENIDLE_TIME_UTILS_H
+
 #include <time.h>
 
 /**

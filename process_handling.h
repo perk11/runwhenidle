@@ -1,5 +1,6 @@
 #ifndef RUNWHENIDLE_PROCESS_HANDLING_H
 #define RUNWHENIDLE_PROCESS_HANDLING_H
+
 /**
  * Sends a signal to a specified process and handles any errors that occur during the process.
  *
@@ -8,6 +9,7 @@
  * @param signal_name The name of the signal being sent.
  */
 void send_signal_to_pid(pid_t pid, int signal, char *signal_name);
+
 /**
  * Pauses a specified process using pause method specified in pause_method variable
  *
@@ -62,4 +64,5 @@ int wait_for_pid_to_exit_synchronously(int pid);
  * @param pid The process ID (PID) of the target process to check.
  */
 void exit_if_pid_has_finished(pid_t pid);
+
 #endif //RUNWHENIDLE_PROCESS_HANDLING_H
