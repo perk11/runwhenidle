@@ -95,7 +95,7 @@ ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
 
         //write parent PID into parent_process_id
         if (!fscanf(stat_file, "%*d %*s %*c %d", &parent_process_id)) {
-            fprintf_error("Failed to parse %s", stat_file);
+            fprintf_error("Failed to parse %s\n", stat_file_path);
         }
         fclose(stat_file);
 
