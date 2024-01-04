@@ -45,11 +45,6 @@ void handle_kill_error(char *signal_name, pid_t pid, int kill_errno) {
     fprintf(stderr, "Failed to send %s signal to PID %i: %s\n", signal_name, pid, strerror(kill_errno));
 }
 
-typedef struct ProcessNode {
-    int process_id;
-    struct ProcessNode *next_node;
-} ProcessNode;
-
 typedef struct ProcessInfo {
     int process_id;
     int parent_process_id;
@@ -116,7 +111,7 @@ pid_t read_parent_process_id(pid_t process_id) {
     return strtol(parent_process_string, NULL, 10);
 }
 
-ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
+ProcessInfo *get_child_processes(int initial_parent_process_id) {
     DIR *proc_directory = opendir("/proc/");
     if (proc_directory == NULL) {
         fprintf_error("Could not open /proc directory");
@@ -164,46 +159,31 @@ ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
     }
     closedir(proc_directory);
 
-    // Stage 2: Build a linked list containing only requested process and its children
-    ProcessNode *head_node = NULL, **tail_node = &head_node;
-    pid_t *descendants;
+    // Stage 2: Build an array containing only children of a process
+    ProcessInfo *descendants;
     descendants = malloc((sizeof *descendants) * total_processes);
     if (descendants == NULL) {
         perror("Memory allocation failed");
         exit(1);
     }
     int known_descendants = 1; //initial value that will be increased if more descendants are found
-    descendants[0] = initial_parent_process_id;
+    pid_t checked_process_id = initial_parent_process_id;
 
-    int currently_checked_parent;
     //Iterations can be added to this loop when known_descendants is increased inside it.
     for (int descendantIndex = 0; descendantIndex < known_descendants; descendantIndex++) {
-        currently_checked_parent = descendants[descendantIndex];
         for (int processIndex = 0; processIndex < total_processes; processIndex++) {
-            if (all_processes[processIndex].parent_process_id != currently_checked_parent) continue;
-
-            int new_process_id = all_processes[processIndex].process_id;
+            if (all_processes[processIndex].parent_process_id != checked_process_id) continue;
 
             // Add this process ID to descendants to check its children next.
+            descendants[known_descendants - 1] = all_processes[processIndex];
             known_descendants++;
-            descendants[known_descendants - 1] = new_process_id;
-
-            // Create and append a new node
-            ProcessNode *new_node;
-            new_node = malloc(sizeof *new_node);
-            if (new_node == NULL) {
-                perror("Memory allocation failed");
-                exit(1);
-            }
-            new_node->process_id = new_process_id;
-            new_node->next_node = NULL;
-            *tail_node = new_node;
-            tail_node = &(new_node->next_node);
         }
+        checked_process_id = descendants[descendantIndex].process_id;
     }
+    descendants[known_descendants - 1].process_id = 0;
     free(all_processes);
-    free(descendants);
-    return head_node;
+
+    return descendants;
 }
 
 void send_signal_to_pid(pid_t pid, int signal, char *signal_name) {
@@ -238,16 +218,13 @@ void pause_command(pid_t pid) {
 
 void pause_command_recursively(pid_t pid) {
     pause_command(pid);
-    ProcessNode *child_process_ids = get_child_processes_linked_list(pid);
-    ProcessNode *current_node = child_process_ids;
-    ProcessNode *previous_node;
-
-    while (current_node) {
-        pause_command(current_node->process_id);
-        previous_node = current_node;
-        current_node = current_node->next_node;
-        free(previous_node);
+    ProcessInfo *child_process_ids = get_child_processes(pid);
+    ProcessInfo *initial_child_process_ids_pointer = child_process_ids;
+    while (child_process_ids->process_id != 0) {
+        pause_command(child_process_ids->process_id);
+        child_process_ids++;
     }
+    free(initial_child_process_ids_pointer);
 }
 
 void resume_command(pid_t pid) {
@@ -259,16 +236,13 @@ void resume_command(pid_t pid) {
 
 void resume_command_recursively(pid_t pid) {
     resume_command(pid);
-    ProcessNode *child_process_ids = get_child_processes_linked_list(pid);
-    ProcessNode *current_node = child_process_ids;
-    ProcessNode *previous_node;
-
-    while (current_node) {
-        resume_command(current_node->process_id);
-        previous_node = current_node;
-        current_node = current_node->next_node;
-        free(previous_node);
+    ProcessInfo *child_process_ids = get_child_processes(pid);
+    ProcessInfo *initial_child_process_ids_pointer = child_process_ids;
+    while (child_process_ids->process_id != 0) {
+        resume_command(child_process_ids->process_id);
+        child_process_ids++;
     }
+    free(initial_child_process_ids_pointer);
 }
 
 int wait_for_pid_to_exit_synchronously(int pid) {
