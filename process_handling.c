@@ -126,7 +126,8 @@ ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
     // Stage 1: Read all process and parent IDs into an array
     const int NUMBER_OF_PROCESSES_INITIALLY_ALLOCATED = 4096;
     int processes_allocated = NUMBER_OF_PROCESSES_INITIALLY_ALLOCATED;
-    ProcessInfo *all_processes = malloc(processes_allocated * sizeof(ProcessInfo));
+    ProcessInfo *all_processes;
+    all_processes = malloc(processes_allocated * (sizeof *all_processes));
     int total_processes = 0;
 
     struct dirent *directory_entry;
@@ -165,7 +166,8 @@ ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
 
     // Stage 2: Build a linked list containing only requested process and its children
     ProcessNode *head_node = NULL, **tail_node = &head_node;
-    pid_t *descendants = malloc(sizeof(pid_t) * total_processes);
+    pid_t *descendants;
+    descendants = malloc((sizeof *descendants) * total_processes);
     if (descendants == NULL) {
         perror("Memory allocation failed");
         exit(1);
@@ -187,7 +189,8 @@ ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
             descendants[known_descendants - 1] = new_process_id;
 
             // Create and append a new node
-            ProcessNode *new_node = malloc(sizeof(ProcessNode));
+            ProcessNode *new_node;
+            new_node = malloc(sizeof *new_node);
             if (new_node == NULL) {
                 perror("Memory allocation failed");
                 exit(1);
