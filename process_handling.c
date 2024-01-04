@@ -53,6 +53,67 @@ typedef struct ProcessInfo {
     int parent_process_id;
 } ProcessInfo;
 
+pid_t read_parent_process_id(pid_t process_id) {
+    const int STAT_FILE_PATH_MAX_LENGTH = 64; // proc/%d/stat, where max value of process_id is 4194304, so 64 should never be reached.
+    char stat_file_path[STAT_FILE_PATH_MAX_LENGTH];
+    //Write path into stat_file_path
+    snprintf(stat_file_path, sizeof(stat_file_path), "/proc/%d/stat", process_id);
+
+    // Examples of stat file contents:
+    //3 (rcu_gp) I 2 0 0 0 -1 69238880 0 0 0 0 0 0 0 0 0 -20 1 0 40 0 0 18446744073709551615 0 0 0 0 0 0 0 2147483647 0 0 0 0 17 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    //2534 ((sd-pam)) S 2508 2508 2508 0 -1 4194624 56 0 0 0 0 0 0 0 20 0 1 0 1649 26865664 1392 18446744073709551615 1 1 0 0 0 0 0 4096 0 0 0 0 17 9 0 0 0 0 0 0 0 0 0 0 0 0 0
+    //784178 (Isolated Web Co) S 3554906 3120 3120 0 -1 4194560 156270 0 0 0 563 133 0 0 20 0 26 0 78028739 2777669632 61094 18446744073709551615 94276324115952 94276324727360 140721125253344 0 0 0 0 69638 1082131704 0 0 0 17 19 0 0 0 0 0 94276324739952 94276324740056 94276339920896 140721125257544 140721125257859 140721125257859 140721125261279 0
+    //87 (kworker/11:0H-events_highpri) I 2 0 0 0 -1 69238880 0 0 0 0 0 0 0 0 0 -20 1 0 41 0 0 18446744073709551615 0 0 0 0 0 0 0 2147483647 0 0 0 0 17 11 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+    // What we need is parent pid, which comes after state.
+    // https://man7.org/linux/man-pages/man5/proc.5.html
+
+    FILE *stat_file;
+    stat_file = fopen(stat_file_path, "r");
+    if (stat_file == NULL) {
+        if (debug) {
+            fprintf_error("Failed to open %s for reading\n", stat_file_path);
+        }
+        return 0;
+    }
+    const int MAX_STAT_FILE_READ_LENGTH =
+            7 //length of 4194304 which is max PID value
+            + 1 //space
+            + 64 //Max length of "comm". Documentation says it's 16 characters, but I found longer examples. Better safe than sorry.
+            + 2 //parenthesis around comm
+            + 1 //space
+            + 1 //state
+            + 1 //space
+            + 7 //length of 4194304
+            + 1 //space
+    ;
+    char file_contents[MAX_STAT_FILE_READ_LENGTH];
+    if (!fgets(file_contents, MAX_STAT_FILE_READ_LENGTH, stat_file)) {
+        fprintf_error("Failed to read from %s\n", stat_file);
+        return 0;
+    }
+    const int MIN_STAT_FILE_READ_CLOSING_PARENTHESIS_POSITION =
+            1 //min PID length
+            + 1//space
+            + 1 //opening parenthesis
+    ;
+    int file_contents_index;
+    //loop until we find ") ".
+    for (file_contents_index = MIN_STAT_FILE_READ_CLOSING_PARENTHESIS_POSITION;
+         file_contents_index < MAX_STAT_FILE_READ_LENGTH - 1; file_contents_index++) {
+        if (file_contents[file_contents_index] == ')' && file_contents[file_contents_index + 1] == ' ') {
+            break;
+        }
+    }
+    if (file_contents_index == MAX_STAT_FILE_READ_LENGTH - 1) {
+        fprintf_error("Failed to parse %s: reached %d bytes and but did not find \") \".\n", stat_file_path,
+                      MAX_STAT_FILE_READ_LENGTH);
+        return 0;
+    }
+    char *parent_process_string = strtok(&file_contents[file_contents_index + 3], " ");
+    return strtol(parent_process_string, NULL, 10);
+}
+
 ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
     DIR *proc_directory = opendir("/proc/");
     if (proc_directory == NULL) {
@@ -67,9 +128,7 @@ ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
     int total_processes = 0;
 
     struct dirent *directory_entry;
-    const int STAT_FILE_PATH_MAX_LENGTH = 64; // proc/%d/stat, where max value of process_id is 4194304, so 64 should never be reached.
-    char stat_file_path[STAT_FILE_PATH_MAX_LENGTH];
-    FILE *stat_file;
+
     while ((directory_entry = readdir(proc_directory)) != NULL) {
         if (total_processes == processes_allocated) {
             processes_allocated *= 2;
@@ -88,16 +147,13 @@ ProcessNode *get_child_processes_linked_list(int initial_parent_process_id) {
         //Skip all the dirs in that are not numbers
         if (sscanf(directory_entry->d_name, "%d", &process_id) != 1) continue;
 
-        //Write path into stat_file_path
-        snprintf(stat_file_path, sizeof(stat_file_path), "/proc/%d/stat", process_id);
-        stat_file = fopen(stat_file_path, "r");
-        if (stat_file == NULL) continue;
-
-        //write parent PID into parent_process_id
-        if (!fscanf(stat_file, "%*d %*s %*c %d", &parent_process_id)) {
-            fprintf_error("Failed to parse %s\n", stat_file_path);
+        parent_process_id = read_parent_process_id(process_id);
+        if (parent_process_id == 0) {
+            if (debug) {
+                fprintf_error("Failed to read parent process id for %d\n", process_id);
+            }
+            continue;
         }
-        fclose(stat_file);
 
         all_processes[total_processes].process_id = process_id;
         all_processes[total_processes].parent_process_id = parent_process_id;
