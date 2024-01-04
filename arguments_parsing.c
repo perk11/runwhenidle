@@ -17,9 +17,10 @@ const long START_MONITOR_AFTER_MAX_SUPPORTED_VALUE = TIMEOUT_MAX_SUPPORTED_VALUE
 const long START_MONITOR_AFTER_MIN_SUPPORTED_VALUE = 0;
 
 void print_usage(char *binary_name) {
-    printf("Usage: %s [OPTIONS] shell_command_to_run [shell_command_arguments]\n", binary_name);
+    printf("Usage: %s [OPTIONS] [shell_command_to_run] [shell_command_arguments]\n", binary_name);
     printf("\nOptions:\n");
     printf("  --timeout|-t <seconds>           Set the user idle time after which the command can run in seconds (default: 300 seconds).\n");
+    printf("  --pid|-p <pid>                   Monitor an existing command rather than start a new one. When this option is used, shell_command_to_run should not be passed.\n");
     printf("  --start-monitor-after|-a <ms>    Set an initial delay in milliseconds before monitoring starts. During this time command runs unrestricted.  This helps to catch errors happening shortly after the execution has started. (default: 300 ms).\n");
     printf("  --pause-method|-m <method>       Specify method for pausing the command when user is not idle. Available parameters: SIGTSTP (can be ignored by the program), SIGSTOP (can not be ignored). (default: SIGTSTP).\n");
     printf("  --verbose|-v                     Enable verbose output for monitoring.\n");
@@ -70,9 +71,10 @@ char *read_remaining_arguments_as_char(int argc,
     return remaining_arguments_string;
 }
 
-char *parse_command_line_arguments(int argc, char *argv[]) {
+void parse_command_line_arguments(int argc, char *argv[]) {
     struct option long_options[] = {
             {"timeout",             required_argument, NULL, 't'},
+            {"pid",                 required_argument, NULL, 'p'},
             {"start-monitor-after", required_argument, NULL, 'a'},
             {"pause-method",        required_argument, NULL, 'm'},
             {"verbose",             no_argument,       NULL, 'v'},
@@ -85,7 +87,7 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
 
     // Parse command line options
     int option;
-    while ((option = getopt_long(argc, argv, "+hvqt:a:m:V", long_options, NULL)) != -1) {
+    while ((option = getopt_long(argc, argv, "+hvqp:t:a:m:V", long_options, NULL)) != -1) {
         switch (option) {
             case 't': {
                 long timeout_arg_value = strtol(optarg, NULL, 10);
@@ -97,6 +99,16 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                     exit(1);
                 }
                 user_idle_timeout_ms = timeout_arg_value * 1000;
+                break;
+            }
+            case 'p': {
+                external_pid = strtol(optarg, NULL, 10);
+                if (external_pid < 1) {
+                    fprintf_error("Invalid pid value: \"%s\".", optarg);
+                    print_usage(argv[0]);
+                    exit(1);
+                }
+
                 break;
             }
             case 'a':
@@ -166,9 +178,21 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
                 user_idle_timeout_ms,
                 start_monitor_after_ms
         );
-    if (optind >= argc) {
-        print_usage(argv[0]);
-        exit(1);
+    if (external_pid) {
+        if (optind < argc) {
+            fprintf_error(
+                    "Running command is not supported when -p option is used. Found unexpected \"%s\"\n",
+                    read_remaining_arguments_as_char(argc, argv)
+            );
+            print_usage(argv[0]);
+            exit(1);
+        }
+    } else {
+        if (optind >= argc) {
+            print_usage(argv[0]);
+            exit(1);
+        }
+        shell_command_to_run = read_remaining_arguments_as_char(argc, argv);
     }
     if (quiet && debug) {
         fprintf_error("Incompatible options --quiet|-q and --debug used\n");
@@ -181,5 +205,4 @@ char *parse_command_line_arguments(int argc, char *argv[]) {
         exit(1);
     }
 
-    return read_remaining_arguments_as_char(argc, argv);
 }

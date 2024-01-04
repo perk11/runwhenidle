@@ -16,6 +16,8 @@
 #define VERSION 'unkown'
 #endif
 
+char *shell_command_to_run;
+pid_t external_pid = 0;
 int verbose = 0;
 int quiet = 0;
 int debug = 0;
@@ -58,6 +60,9 @@ int handle_interruption() {
             );
         }
         resume_command_recursively(pid);
+    }
+    if (external_pid) {
+        return 0;
     }
     //Wait for the child process to complete
     return wait_for_pid_to_exit_synchronously(pid);
@@ -149,7 +154,7 @@ long long pause_or_resume_command_depending_on_user_activity(
 }
 
 int main(int argc, char *argv[]) {
-    char *shell_command_to_run = parse_command_line_arguments(argc, argv);
+    parse_command_line_arguments(argc, argv);
 
     //Open display and initialize XScreensaverInfo for querying idle time
     x_display = XOpenDisplay(NULL);
@@ -169,8 +174,11 @@ int main(int argc, char *argv[]) {
         fprintf_error(
                 "No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.\n");
     }
-
-    pid = run_shell_command(shell_command_to_run);
+    if (external_pid == 0) {
+        pid = run_shell_command(shell_command_to_run);
+    } else {
+        pid = external_pid;
+    }
     free(shell_command_to_run);
     struct timespec time_when_command_started;
     clock_gettime(CLOCK_MONOTONIC, &time_when_command_started);

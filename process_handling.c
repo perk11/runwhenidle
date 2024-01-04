@@ -7,6 +7,8 @@
 #include <sys/wait.h>
 #include <dirent.h>
 
+#include "arguments_parsing.h"
+#include "sleep_utils.h"
 #include "process_handling.h"
 #include "output_settings.h"
 #include "pause_methods.h"
@@ -280,11 +282,28 @@ int wait_for_pid_to_exit_synchronously(int pid) {
 
 void exit_if_pid_has_finished(pid_t pid) {
     int status;
+    int finished = 0;
+    int exit_code;
     if (debug) fprintf(stderr, "Checking if PID %i has finished\n", pid);
-    if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
-        int exit_code = WEXITSTATUS(status);
+    if (external_pid) {
+        if (kill(pid, 0) == -1) {
+            finished = 1;
+            exit_code = 0;
+        }
+    } else {
+        if (waitpid(pid, &status, WNOHANG + WUNTRACED) == pid && WIFEXITED(status)) {
+            finished = 1;
+            exit_code = WEXITSTATUS(status);
+        }
+    }
+
+    if (finished) {
         if (verbose) {
-            fprintf(stderr, "PID %i has finished with exit code %u\n", pid, exit_code);
+            fprintf(stderr, "PID %i has finished", pid);
+            if (!external_pid) {
+                fprintf(stderr, " with exit code %u", exit_code);
+            }
+            fprintf(stderr, "\n");
         }
         exit(exit_code);
     }
