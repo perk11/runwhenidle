@@ -22,7 +22,7 @@ void print_usage(char *binary_name) {
     printf("  --timeout|-t <seconds>           Set the user idle time after which the command can run in seconds (default: 300 seconds).\n");
     printf("  --pid|-p <pid>                   Monitor an existing command rather than start a new one. When this option is used, shell_command_to_run should not be passed.\n");
     printf("  --start-monitor-after|-a <ms>    Set an initial delay in milliseconds before monitoring starts. During this time command runs unrestricted.  This helps to catch errors happening shortly after the execution has started. (default: 300 ms).\n");
-    printf("  --pause-method|-m <method>       Specify method for pausing the command when user is not idle. Available parameters: SIGTSTP (can be ignored by the program), SIGSTOP (can not be ignored). (default: SIGTSTP).\n");
+    printf("  --pause-method|-m <method>       Specify method for pausing the command when user is not idle. Available parameters: SIGTSTP (can be ignored by the program), SIGSTOP (can not be ignored). (default: SIGSTOP).\n");
     printf("  --verbose|-v                     Enable verbose output for monitoring.\n");
     printf("  --debug                          Enable debugging output.\n");
     printf("  --quiet|-q                       Suppress all output from %s except errors and only display output from the command that is running\n",
