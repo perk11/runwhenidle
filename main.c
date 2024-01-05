@@ -92,7 +92,7 @@ void sigterm_handler(int signum) {
         }
     } else {
         if (!quiet) {
-            printf("Received SIGINT, sending SIGTERM to the command and waiting for it to finish\n");
+            printf("Received SIGTERM, sending SIGTERM to the command and waiting for it to finish\n");
         }
         send_signal_to_pid(pid, signum, "SIGTERM");
     }
