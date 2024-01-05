@@ -25,7 +25,7 @@ int monitoring_started = 0;
 enum pause_method pause_method = PAUSE_METHOD_SIGSTOP;
 long start_monitor_after_ms = 300;
 long unsigned user_idle_timeout_ms = 300000;
-long long polling_interval_ms = 1000;
+const long long POLLING_INTERVAL_MS = 1000;
 const long long POLLING_INTERVAL_BEFORE_STARTING_MONITORING_MS = 100;
 const char *pause_method_string[] = {
         //order must match order in pause_method enum
@@ -101,7 +101,6 @@ void sigterm_handler(int signum) {
 }
 
 long long pause_or_resume_command_depending_on_user_activity(
-        long long polling_interval_ms,
         long long sleep_time_ms,
         unsigned long user_idle_time_ms) {
     if (user_idle_time_ms >= user_idle_timeout_ms) {
@@ -109,7 +108,7 @@ long long pause_or_resume_command_depending_on_user_activity(
             fprintf(stderr, "Idle time: %lums, idle timeout: %lums, user is inactive\n", user_idle_time_ms,
                     user_idle_timeout_ms);
         if (command_paused) {
-            sleep_time_ms = polling_interval_ms; //reset to default value
+            sleep_time_ms = POLLING_INTERVAL_MS; //reset to default value
             if (verbose) {
                 fprintf(stderr, "Idle time: %lums, idle timeout: %lums, resuming command\n", user_idle_time_ms,
                         user_idle_timeout_ms);
@@ -150,12 +149,12 @@ long long pause_or_resume_command_depending_on_user_activity(
 
         }
 
-        if (sleep_time_ms < polling_interval_ms) {
+        if (sleep_time_ms < POLLING_INTERVAL_MS) {
             if (debug)
                 fprintf(stderr,
                         "Target sleep time %lldms is less than polling interval %lldms, resetting it to polling interval\n",
-                        sleep_time_ms, polling_interval_ms);
-            sleep_time_ms = polling_interval_ms;
+                        sleep_time_ms, POLLING_INTERVAL_MS);
+            sleep_time_ms = POLLING_INTERVAL_MS;
         }
         if (verbose) {
             fprintf(
@@ -236,7 +235,6 @@ int main(int argc, char *argv[]) {
 
         if (monitoring_started) {
             sleep_time_ms = pause_or_resume_command_depending_on_user_activity(
-                    polling_interval_ms,
                     sleep_time_ms,
                     user_idle_time_ms);
         }
