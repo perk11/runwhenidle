@@ -88,6 +88,7 @@ pid_t read_parent_process_id(pid_t process_id) {
         fprintf_error("Failed to read from %s\n", stat_file);
         return 0;
     }
+    fclose(stat_file);
     const int MIN_STAT_FILE_READ_CLOSING_PARENTHESIS_POSITION =
             1 //min PID length
             + 1//space
