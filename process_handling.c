@@ -8,7 +8,6 @@
 #include <dirent.h>
 
 #include "arguments_parsing.h"
-#include "sleep_utils.h"
 #include "process_handling.h"
 #include "output_settings.h"
 #include "pause_methods.h"
