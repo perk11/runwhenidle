@@ -67,7 +67,7 @@ pid_t read_parent_process_id(pid_t process_id) {
     FILE *stat_file;
     stat_file = fopen(stat_file_path, "r");
     if (stat_file == NULL) {
-        if (debug) {
+        if ((!quiet && errno != ENOENT) || debug) {
             fprintf_error("Failed to open %s for reading: %s\n", stat_file_path, strerror(errno));
         }
         return 0;
