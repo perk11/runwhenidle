@@ -55,9 +55,11 @@ long unsigned query_user_idle_time() {
 int handle_interruption() {
     if (command_paused) {
         if (verbose) {
-            fprintf(stderr,
-                    "Since command was previously paused, we will try to resume it now to be able to handle the interruption before exiting\n"
-            );
+            fprintf(stderr, "Since command was previously paused, we will try to resume it now");
+            if (!external_pid) {
+                fprintf(stderr, " to be able to handle the interruption before exiting");
+            }
+            fprintf(stderr, "\n");
         }
         resume_command_recursively(pid);
     }
@@ -69,18 +71,32 @@ int handle_interruption() {
 }
 
 void sigint_handler(int signum) {
-    if (!quiet) {
-        printf("Received SIGINT, sending SIGINT to the command and waiting for it to finish.\n");
+    if (external_pid) {
+        if (!quiet) {
+            printf("Received SIGINT\n");
+        }
+    } else {
+        if (!quiet) {
+            printf("Received SIGINT, sending SIGINT to the command and waiting for it to finish\n");
+        }
+        send_signal_to_pid(pid, signum, "SIGINT");
     }
-    send_signal_to_pid(pid, signum, "SIGINT");
+
     interruption_received = 1;
 }
 
 void sigterm_handler(int signum) {
-    if (!quiet) {
-        printf("Received SIGTERM, sending SIGTERM to the command and waiting for it to finish.\n");
+    if (external_pid) {
+        if (!quiet) {
+            printf("Received SIGTERM\n");
+        }
+    } else {
+        if (!quiet) {
+            printf("Received SIGINT, sending SIGTERM to the command and waiting for it to finish\n");
+        }
+        send_signal_to_pid(pid, signum, "SIGTERM");
     }
-    send_signal_to_pid(pid, signum, "SIGTERM");
+
     interruption_received = 1;
 }
 
