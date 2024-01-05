@@ -4,16 +4,17 @@ runwhenidle is a Linux utility that can be used to run a computationally or IO-i
 in front of the computer, pausing it once the user is back, resuming once the user left, often without requiring
 adaptation from the program being run.
 
-runwhenidle runs a command given to it, pauses it if the user is active by sending SIGTSTP (or optionally SIGSTOP) to
-the command,
-when the user activity stops, runwhenidle resumes the command by sending it SIGCONT signal.
-It then checks once per second if user activity has resumed, and once it is, pauses the command again.
+runwhenidle runs a command given to it or monitors an existing command with `--pid` parameter, pauses it if the user
+is active by sending SIGSTOP (or optionally SIGTSTP) to the command and all its child processes.
+When the user activity stops, runwhenidle resumes the command by sending it and all the child processes SIGCONT signal.
+It then checks once per second if user activity has resumed, and once it is, pauses the command and its child processes again.
 
 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened therefore a running X server is
 required.
 Wayland is not currently supported.
 
-If runwhenidle receives an interruption signal (SIGINT or SIGTERM), it will pass that signal to the command it is
+If runwhenidle was used to start a command (i.e. `--pid` parameter was not used) and it receives an interruption
+signal (SIGINT or SIGTERM), it will pass that signal to the command it is
 running, resume the command if it previously paused it, stop checking for user activity and will wait for the command
 to handle the signal.
 
@@ -35,7 +36,7 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 ## Usage
 
-    runwhenidle [OPTIONS] shell_command_to_run [shell_command_arguments]
+    runwhenidle [OPTIONS] [shell_command_to_run] [shell_command_arguments]
 
 ### Options
 
@@ -68,11 +69,6 @@ anything other than the output of `cat /dev/zero`.
 
 1. Wayland support. runwhenidle currently doesn't work without XScreenSaver, but Wayland support should be possible and
    is planned (at least for the DEs supporting ext-idle-notify, which now both Gnome and KDE support).
-2. The signal isn't sent to child processes, so if your process starts new processes, they will not receive the signal
-   and will continue running. Unofrtunately there is no universal solution for this, but I plan to look at what needs to
-   be done to improve this behavior.
-3. When running from cron, runwhenidle doesn't work. This is now resolved, but you need to use --pause-method=SIGSTOP
-   parameter. For some reason, cron is launching things in a way that ignores SIGTSTP signal.
 
 ### Building Ubuntu/Debian package
 
