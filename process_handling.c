@@ -68,7 +68,7 @@ pid_t read_parent_process_id(pid_t process_id) {
     stat_file = fopen(stat_file_path, "r");
     if (stat_file == NULL) {
         if (debug) {
-            fprintf_error("Failed to open %s for reading\n", stat_file_path);
+            fprintf_error("Failed to open %s for reading: %s\n", stat_file_path, strerror(errno));
         }
         return 0;
     }
@@ -157,6 +157,9 @@ ProcessInfo *get_child_processes(int initial_parent_process_id) {
         all_processes[total_processes].parent_process_id = parent_process_id;
         total_processes++;
     }
+    if (debug) {
+        fprintf(stderr, "Read %d processes from /proc\n", total_processes);
+    }
     closedir(proc_directory);
 
     // Stage 2: Build an array containing only children of a process
@@ -179,6 +182,9 @@ ProcessInfo *get_child_processes(int initial_parent_process_id) {
             known_descendants++;
         }
         checked_process_id = descendants[descendantIndex].process_id;
+    }
+    if (debug) {
+        fprintf(stderr, "%d descendants found for the process\n", known_descendants);
     }
     descendants[known_descendants - 1].process_id = 0;
     free(all_processes);
