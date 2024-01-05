@@ -178,6 +178,10 @@ int main(int argc, char *argv[]) {
         pid = run_shell_command(shell_command_to_run);
     } else {
         pid = external_pid;
+        if (kill(pid, 0) == -1) {
+            fprintf_error("PID %d is not running\n", pid);
+            exit(1);
+        }
     }
     free(shell_command_to_run);
     struct timespec time_when_command_started;
