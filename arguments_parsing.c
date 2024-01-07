@@ -20,23 +20,23 @@ const long START_MONITOR_AFTER_MIN_SUPPORTED_VALUE = 0;
 void print_usage(char *binary_name) {
     printf("Usage: %s [OPTIONS] [shell_command_to_run] [shell_command_arguments]\n", binary_name);
     printf("\nOptions:\n");
-    printf("  --timeout|-t <seconds>        Set the user idle time after which the process\n"
+    printf("  --timeout, -t <seconds>        Set the user idle time after which the process\n"
            "                                can be resumed in seconds. (default: 300 seconds).\n\n");
-    printf("  --pid|-p <pid>                Monitor an existing process. When this option is used,\n"
+    printf("  --pid, -p <pid>                Monitor an existing process. When this option is used,\n"
            "                                shell_command_to_run should not be passed.\n\n");
-    printf("  --start-monitor-after|-a <ms> Set an initial delay in milliseconds before monitoring\n"
+    printf("  --start-monitor-after, -a <ms> Set an initial delay in milliseconds before monitoring\n"
            "                                starts. During this time the process runs unrestricted.\n"
            "                                This helps to catch quick errors. (default: 300 ms).\n\n");
-    printf("  --pause-method|-m <method>    Specify method for pausing the process when the user is\n"
+    printf("  --pause-method, -m <method>    Specify method for pausing the process when the user is\n"
            "                                not idle. Available Options (default: SIGSTOP): \n"
            "                                    SIGTSTP (can be ignored by the program),\n"
            "                                    SIGSTOP (cannot be ignored).\n\n");
-    printf("  --quiet|-q                    Suppress all output from %s except errors and only\n"
+    printf("  --quiet, -q                    Suppress all output from %s except errors and only\n"
            "                                display output from the command that is running.\n"
            "                                No output if --pid options is used.\n\n", binary_name);
-    printf("  --verbose|-v                  Enable verbose output for monitoring.\n");
+    printf("  --verbose, -v                  Enable verbose output for monitoring.\n");
     printf("  --debug                       Enable debugging output.\n");
-    printf("  --version|-V                  Print the program version information.\n");
+    printf("  --version, -V                  Print the program version information.\n");
 }
 
 void print_version() {
