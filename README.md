@@ -38,7 +38,29 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
     runwhenidle [OPTIONS] [shell_command_to_run] [shell_command_arguments]
 
-### Options
+### Example 1:
+
+    runwhenidle -t 100 -v rsync /filea /fileb
+
+Run the `rsync` command and pause it while user is active. When user is inactive for 100 seconds, resume the command.
+Output debug information to stderr.
+
+### Example 2:
+
+    runwhenidle --start-monitor-after=10 --timeout=30 --quiet ffmpeg -i file.mp4 file.mkv
+
+Run the `ffmpeg` for 10 seconds uninterrupted. After 10 seconds pass, start monitoring user activity and pause ffmpeg 
+if user has been active within last 30 seconds. If user is inactive for 30 seconds, resume the operation of ffmpeg.
+`--quiet` option makes sure runwhenidle doesn't output anything other than the output of `ffmpeg`.
+
+### Example 3:
+
+    runwhenidle -p 12345
+
+Start monitoring user activity and when user is active, pause process with PID 12345, unpause it when user is inactive 
+for 300 seconds.
+
+### All options
 
 | Option                            | Description                                                                                                                                                | Default Value |
 |-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
@@ -51,19 +73,6 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 | `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running.                                             | Not quiet     |
 | `--version\| -V`                  | Print the program version information.                                                                                                                     |               |
 
-### Example 1:
-
-    runwhenidle -t 100 -v cp /filea /fileb
-
-Run the `cp` command and pause it while user is active. When user is inactive for 100 seconds, resume the command.
-Output debug information to stderr.
-
-### Example 2:
-
-    runwhenidle --timeout=300 -q cat /dev/zero
-
-Run the `cat /dev/zero` command and pause it while user is active. `-q` option makes sure runwhenidle doesn't output
-anything other than the output of `cat /dev/zero`.
 
 ### Known issues
 
