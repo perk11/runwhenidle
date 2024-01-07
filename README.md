@@ -75,9 +75,9 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 | `--pid\|-p <pid>`                 | Monitor an existing process. When this option is used, shell_command_to_run should not be passed.                                                          |               |
 | `--start-monitor-after\| -a <ms>` | Set an initial delay in milliseconds before monitoring starts. During this time the process runs unrestricted. This helps to catch quick errors.           | 300 ms        |
 | `--pause-method\| -m <method>`    | Specify method for pausing the process when the user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (cannot be ignored). | SIGSTOP       |
+| `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running. No output if `--pid` options is used.       | Not quiet     |
 | `--verbose\| -v`                  | Enable verbose output for monitoring.                                                                                                                      | Not verbose   |
 | `--debug`                         | Enable debugging output.                                                                                                                                   | No debug      |
-| `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running. No output if `--pid` options is used.       | Not quiet     |
 | `--version\| -V`                  | Print the program version information.                                                                                                                     |               |
 
 
