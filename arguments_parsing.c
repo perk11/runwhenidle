@@ -126,7 +126,6 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                                   argv[0],
                                   optarg,
                                   TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
-                    print_usage(argv[0]);
                     exit(1);
                 }
                 user_idle_timeout_ms = timeout_arg_value * 1000;
@@ -136,8 +135,7 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                 external_pid = strtol(optarg, NULL, 10);
                 if (external_pid < 1) {
                     print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
-                    fprintf_error("%s: Invalid pid value: \"%s\".", argv[0], optarg);
-                    print_usage(argv[0]);
+                    fprintf_error("%s: Invalid pid value: \"%s\"\n", argv[0], optarg);
                     exit(1);
                 }
 
@@ -153,7 +151,6 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                                   optarg,
                                   START_MONITOR_AFTER_MIN_SUPPORTED_VALUE, START_MONITOR_AFTER_MAX_SUPPORTED_VALUE
                     );
-                    print_usage(argv[0]);
                     exit(1);
                 }
                 break;
@@ -204,7 +201,7 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                 exit(0);
             default:
                 print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
-                print_usage(argv[0]);
+                fprintf(stderr, "Try %s --help for more information\n", argv[0]);
                 exit(1);
         }
     }
@@ -227,11 +224,12 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                     argv[0],
                     read_remaining_arguments_as_char(argc, argv)
             );
-            print_usage(argv[0]);
+            fprintf(stderr, "Try %s --help for more information\n", argv[0]);
             exit(1);
         }
     } else {
         if (optind >= argc) {
+            fprintf_error("Either shell command or --pid|-p option is required\n");
             print_usage(argv[0]);
             exit(1);
         }
@@ -239,12 +237,10 @@ void parse_command_line_arguments(int argc, char *argv[]) {
     }
     if (quiet && debug) {
         fprintf_error("%s: Incompatible options --quiet|-q and --debug used\n", argv[0]);
-        print_usage(argv[0]);
         exit(1);
     }
     if (quiet && verbose) {
         fprintf_error("%s: Incompatible options --quiet|-q and --verbose|-v used\n", argv[0]);
-        print_usage(argv[0]);
         exit(1);
     }
 
