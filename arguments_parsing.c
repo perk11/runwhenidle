@@ -16,6 +16,7 @@ const long TIMEOUT_MIN_SUPPORTED_VALUE = 1;
 const long START_MONITOR_AFTER_MAX_SUPPORTED_VALUE = TIMEOUT_MAX_SUPPORTED_VALUE * 1000;
 const long START_MONITOR_AFTER_MIN_SUPPORTED_VALUE = 0;
 
+
 void print_usage(char *binary_name) {
     printf("Usage: %s [OPTIONS] [shell_command_to_run] [shell_command_arguments]\n", binary_name);
     printf("\nOptions:\n");
@@ -79,6 +80,18 @@ char *read_remaining_arguments_as_char(int argc,
     return remaining_arguments_string;
 }
 
+void print_buffered_error_and_restore_stderr(FILE *old_stderr, const char *getopt_error_buffer, int buffer_size) {
+    fflush(stderr);
+    fclose(stderr);
+    stderr = old_stderr;
+    if (getopt_error_buffer[0] != '\0') {
+        fprintf_error("%s", getopt_error_buffer);
+        if (getopt_error_buffer[buffer_size - 2] != '\0') {
+            fprintf_error(" (error message truncated)\n");
+        }
+    }
+}
+
 void parse_command_line_arguments(int argc, char *argv[]) {
     struct option long_options[] = {
             {"timeout",             required_argument, NULL, 't'},
@@ -93,6 +106,13 @@ void parse_command_line_arguments(int argc, char *argv[]) {
             {NULL, 0,                                  NULL, 0}
     };
 
+    // Redirect stderr to a buffer to capture getopt errors
+    FILE *old_stderr;
+    char getopt_error_buffer[1024] = {0};
+    fflush(stderr);
+    old_stderr = stderr;
+    stderr = fmemopen(getopt_error_buffer, sizeof(getopt_error_buffer), "w");;
+
     // Parse command line options
     int option;
     while ((option = getopt_long(argc, argv, "+hvqp:t:a:m:V", long_options, NULL)) != -1) {
@@ -101,7 +121,10 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                 long timeout_arg_value = strtol(optarg, NULL, 10);
                 if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE ||
                     timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
-                    fprintf_error("Invalid timeout value: \"%s\". Range supported: %ld-%ld\n", optarg,
+                    print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
+                    fprintf_error("%s: Invalid timeout value: \"%s\". Range supported: %ld-%ld\n",
+                                  argv[0],
+                                  optarg,
                                   TIMEOUT_MIN_SUPPORTED_VALUE, TIMEOUT_MAX_SUPPORTED_VALUE);
                     print_usage(argv[0]);
                     exit(1);
@@ -112,7 +135,8 @@ void parse_command_line_arguments(int argc, char *argv[]) {
             case 'p': {
                 external_pid = strtol(optarg, NULL, 10);
                 if (external_pid < 1) {
-                    fprintf_error("Invalid pid value: \"%s\".", optarg);
+                    print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
+                    fprintf_error("%s: Invalid pid value: \"%s\".", argv[0], optarg);
                     print_usage(argv[0]);
                     exit(1);
                 }
@@ -123,7 +147,10 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                 start_monitor_after_ms = strtol(optarg, NULL, 10);
 
                 if (start_monitor_after_ms < START_MONITOR_AFTER_MIN_SUPPORTED_VALUE || errno != 0) {
-                    fprintf_error("Invalid start-monitor-after time value: \"%s\" Range supported: %ld-%ld.\n", optarg,
+                    print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
+                    fprintf_error("%s: Invalid start-monitor-after time value: \"%s\" Range supported: %ld-%ld.\n",
+                                  argv[0],
+                                  optarg,
                                   START_MONITOR_AFTER_MIN_SUPPORTED_VALUE, START_MONITOR_AFTER_MAX_SUPPORTED_VALUE
                     );
                     print_usage(argv[0]);
@@ -143,7 +170,11 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                     }
                 }
                 if (pause_method == PAUSE_METHOD_UNKNOWN) {
-                    fprintf_error("Invalid value for --pause-method|m argument: \"%s\". Supported values: ", optarg);
+                    print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
+                    fprintf_error("%s: Invalid value for --pause-method|m argument: \"%s\". Supported values: ",
+                                  argv[0],
+                                  optarg
+                    );
                     for (int i = 1; pause_method_string[i] != NULL; i++) {
                         fprintf_error(pause_method_string[i]);
                         if (pause_method_string[i + 1] != NULL) {
@@ -172,10 +203,13 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                 print_usage(argv[0]);
                 exit(0);
             default:
+                print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
                 print_usage(argv[0]);
                 exit(1);
         }
     }
+    print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
+
     if (debug)
         fprintf(stderr,
                 "verbose: %i, debug: %i, quiet: %i, pause_method: %i, user_idle_timeout_ms: %lu, start_monitoring_after_ms: %ld\n",
@@ -189,7 +223,8 @@ void parse_command_line_arguments(int argc, char *argv[]) {
     if (external_pid) {
         if (optind < argc) {
             fprintf_error(
-                    "Running command is not supported when -p option is used. Found unexpected \"%s\"\n",
+                    "%s: Running command is not supported when -p option is used. Found unexpected \"%s\"\n",
+                    argv[0],
                     read_remaining_arguments_as_char(argc, argv)
             );
             print_usage(argv[0]);
@@ -203,12 +238,12 @@ void parse_command_line_arguments(int argc, char *argv[]) {
         shell_command_to_run = read_remaining_arguments_as_char(argc, argv);
     }
     if (quiet && debug) {
-        fprintf_error("Incompatible options --quiet|-q and --debug used\n");
+        fprintf_error("%s: Incompatible options --quiet|-q and --debug used\n", argv[0]);
         print_usage(argv[0]);
         exit(1);
     }
     if (quiet && verbose) {
-        fprintf_error("Incompatible options --quiet|-q and --verbose|-v used\n");
+        fprintf_error("%s: Incompatible options --quiet|-q and --verbose|-v used\n", argv[0]);
         print_usage(argv[0]);
         exit(1);
     }
