@@ -118,9 +118,10 @@ void parse_command_line_arguments(int argc, char *argv[]) {
     while ((option = getopt_long(argc, argv, "+hvqp:t:a:m:V", long_options, NULL)) != -1) {
         switch (option) {
             case 't': {
-                long timeout_arg_value = strtol(optarg, NULL, 10);
+                char *strtol_endptr;
+                long timeout_arg_value = strtol(optarg, &strtol_endptr, 10);
                 if (timeout_arg_value < TIMEOUT_MIN_SUPPORTED_VALUE ||
-                    timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0) {
+                    timeout_arg_value > TIMEOUT_MAX_SUPPORTED_VALUE || errno != 0 || *strtol_endptr != '\0') {
                     print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
                     fprintf_error("%s: Invalid timeout value: \"%s\". Range supported: %ld-%ld\n",
                                   argv[0],
@@ -132,8 +133,9 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                 break;
             }
             case 'p': {
-                external_pid = strtol(optarg, NULL, 10);
-                if (external_pid < 1) {
+                char *strtol_endptr;
+                external_pid = strtol(optarg, &strtol_endptr, 10);
+                if (external_pid < 1 || errno != 0 || *strtol_endptr != '\0') {
                     print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
                     fprintf_error("%s: Invalid pid value: \"%s\"\n", argv[0], optarg);
                     exit(1);
@@ -141,10 +143,11 @@ void parse_command_line_arguments(int argc, char *argv[]) {
 
                 break;
             }
-            case 'a':
-                start_monitor_after_ms = strtol(optarg, NULL, 10);
+            case 'a': {
+                char *strtol_endptr;
+                start_monitor_after_ms = strtol(optarg, &strtol_endptr, 10);
 
-                if (start_monitor_after_ms < START_MONITOR_AFTER_MIN_SUPPORTED_VALUE || errno != 0) {
+                if (start_monitor_after_ms < START_MONITOR_AFTER_MIN_SUPPORTED_VALUE || errno != 0 || *strtol_endptr != '\0') {
                     print_buffered_error_and_restore_stderr(old_stderr, getopt_error_buffer, sizeof (getopt_error_buffer));
                     fprintf_error("%s: Invalid start-monitor-after time value: \"%s\" Range supported: %ld-%ld.\n",
                                   argv[0],
@@ -154,6 +157,7 @@ void parse_command_line_arguments(int argc, char *argv[]) {
                     exit(1);
                 }
                 break;
+                }
             case 'm': {
                 char *method = strdup(optarg);
                 for (int i = 0; i < sizeof(method); i++) {
