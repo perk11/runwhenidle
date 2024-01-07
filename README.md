@@ -77,7 +77,7 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 | `--pause-method\| -m <method>`    | Specify method for pausing the process when the user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (cannot be ignored). | SIGSTOP       |
 | `--verbose\| -v`                  | Enable verbose output for monitoring.                                                                                                                      | Not verbose   |
 | `--debug`                         | Enable debugging output.                                                                                                                                   | No debug      |
-| `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running. No output if `--pid` options is used.        | Not quiet     |
+| `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running. No output if `--pid` options is used.       | Not quiet     |
 | `--version\| -V`                  | Print the program version information.                                                                                                                     |               |
 
 
