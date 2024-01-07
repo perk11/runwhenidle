@@ -2,7 +2,7 @@
 
 runwhenidle is a Linux utility that can be used to pause a computationally or IO-intensive program when user is
 in front of the computer, resuming it once the user is away, usually without requiring adaptation from the program 
-being run. It can run a command given to it or monitor an already running command.
+being run. It can run a command given to it or monitor an already running process.
 
 ## Example 1:
 
@@ -38,14 +38,14 @@ When user is active, these checks happen as infrequently as possible to satisfy 
 (default - every 5 minutes). When user is inactive, these checks happen once per second, to allow to restore
 the system responsiveness quickly.
 
-When runwhenidle determines that the user is active, it will send SIGSTOP (or optionally SIGTSTP) to the command
-and all its child processes. When the user activity stops, runwhenidle resumes the command by sending it and all 
+When runwhenidle determines that the user is active, it will send SIGSTOP (or optionally SIGTSTP) to the process
+and all its child processes. When the user activity stops, runwhenidle resumes the process by sending it and all 
 the child processes SIGCONT signal. It then checks once per second if user activity has resumed, and once it is,
-pauses the command and its child processes again.
+pauses the process and its child processes again.
 
 If runwhenidle was used to start a command (i.e. `--pid` parameter was not used) and it receives an interruption
-signal (SIGINT or SIGTERM), it will pass that signal to the command it is running, resume the command if it 
-previously paused it, stop checking for user activity and will wait for the command to handle the signal.
+signal (SIGINT or SIGTERM), it will pass that signal to the process it is running, resume the process if it 
+previously paused it, stop checking for user activity and will wait for the process to handle the signal.
 
 ## Installation
 
@@ -71,13 +71,13 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 | Option                            | Description                                                                                                                                                | Default Value |
 |-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| `--timeout\| -t <seconds>`        | Set the user idle time after which the command can be resumed in seconds.                                                                                  | 300 seconds   |
-| `--pid\|-p <pid>`                 | Monitor an existing command rather than start a new one. When this option is used, shell_command_to_run should not be passed.                              |               |
-| `--start-monitor-after\| -a <ms>` | Set an initial delay in milliseconds before monitoring starts. During this time command runs unrestricted. This helps to catch quick errors.               | 300 ms        |
-| `--pause-method\| -m <method>`    | Specify method for pausing the command when the user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (cannot be ignored). | SIGSTOP       |
+| `--timeout\| -t <seconds>`        | Set the user idle time after which the process can be resumed in seconds.                                                                                  | 300 seconds   |
+| `--pid\|-p <pid>`                 | Monitor an existing process. When this option is used, shell_command_to_run should not be passed.                                                          |               |
+| `--start-monitor-after\| -a <ms>` | Set an initial delay in milliseconds before monitoring starts. During this time the process runs unrestricted. This helps to catch quick errors.           | 300 ms        |
+| `--pause-method\| -m <method>`    | Specify method for pausing the process when the user is not idle. Available Options: SIGTSTP (can be ignored by the program), SIGSTOP (cannot be ignored). | SIGSTOP       |
 | `--verbose\| -v`                  | Enable verbose output for monitoring.                                                                                                                      | Not verbose   |
 | `--debug`                         | Enable debugging output.                                                                                                                                   | No debug      |
-| `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running.                                             | Not quiet     |
+| `--quiet\| -q`                    | Suppress all output from ./runwhenidle except errors and only display output from the command that is running. No output if `--pid` options is used.        | Not quiet     |
 | `--version\| -V`                  | Print the program version information.                                                                                                                     |               |
 
 
