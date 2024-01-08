@@ -17,7 +17,7 @@ void fprintf_error(const char *format, ...) {
     va_start(args, format);
 
     bool is_tty = isatty(fileno(stderr));
-    if (is_tty) print_colored_prefix(stderr, "31");
+    if (is_tty) print_colored_prefix(stderr, "1;31");
     vfprintf(stderr, format, args);
     if (is_tty) print_colored_suffix(stderr);
 
