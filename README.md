@@ -43,9 +43,10 @@ and all its child processes. When the user activity stops, runwhenidle resumes t
 the child processes SIGCONT signal. It then checks once per second if user activity has resumed, and once it is,
 pauses the process and its child processes again.
 
-If runwhenidle was used to start a command (i.e. `--pid` parameter was not used) and it receives an interruption
-signal (SIGINT or SIGTERM), it will pass that signal to the process it is running, resume the process if it 
-previously paused it, stop checking for user activity and will wait for the process to handle the signal.
+If runwhenidle was used to run a command (i.e. `--pid` parameter was not used) and it receives an interruption
+signal (SIGINT or SIGTERM), it will resume the process it is running if it is currently paused, and then sned the
+same signal to it to allow the process to handle the signal. runwhenidle then will stop checking for user activity 
+and will wait for the process to exit.
 
 ## Installation
 
