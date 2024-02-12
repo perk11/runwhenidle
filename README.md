@@ -12,7 +12,7 @@ The simplest way to start using runwhenidle is just by putting it in front of th
 
 ## Example 2:
 
-    runwhenidle --start-monitor-after=10 --timeout=30 --quiet ffmpeg -i file.mp4 file.mkv
+    runwhenidle --start-monitor-after=1000 --timeout=30 --quiet ffmpeg -i file.mp4 file.mkv
 
 In this example `ffmpeg` will run for 10 seconds uninterrupted. After 10 seconds pass, 
 runwhenidle  will start monitoring user activity and pause ffmpeg  if user has been active within last 30 seconds.
