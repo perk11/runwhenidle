@@ -19,7 +19,7 @@ runwhenidle  will start monitoring user activity and pause ffmpeg  if user has b
 If user is inactive for 30 seconds, resume the operation of ffmpeg. `--quiet` option makes sure runwhenidle doesn't
 output anything other than the output of `ffmpeg`. Same command can be ran with the short versions of the arguments:
 
-    runwhenidle -a 10 -t 30 -q ffmpeg -i file.mp4 file.mkv
+    runwhenidle -a 10000 -t 30 -q ffmpeg -i file.mp4 file.mkv
 
 
 ## Example 3:
