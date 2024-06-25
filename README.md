@@ -1,8 +1,7 @@
 # runwhenidle
 
-runwhenidle is a Linux utility that can be used to pause a computationally or IO-intensive program when user is
-in front of the computer, resuming it once the user is away, usually without requiring adaptation from the program 
-being run. It can run a command given to it or monitor an already running process.
+runwhenidle is a Linux utility that can be used to pause any Linux process when user activity is detected and resume it when user is idle.
+This can be useful for running computationally or IO-intensive program without degrading user's experience. It can run a command given to it or monitor an already running process.
 
 ## Example 1:
 
