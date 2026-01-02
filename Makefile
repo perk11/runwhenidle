@@ -1,10 +1,10 @@
 TARGET_EXEC := runwhenidle
-LDLIBS=-lXss -lX11
+LDLIBS=-lXss -lX11 -lwayland-client -lm
 CC=gcc
 ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
-SOURCES = time_utils.c sleep_utils.c tty_utils.c process_handling.c arguments_parsing.c main.c
+SOURCES = time_utils.c sleep_utils.c tty_utils.c process_handling.c arguments_parsing.c  ext-idle-notify-v1-protocol.c main.c
 OBJECTS = $(SOURCES:.c=.o)
 CCFLAGS = -Werror=all
 all: executable
