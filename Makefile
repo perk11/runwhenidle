@@ -1,5 +1,5 @@
 TARGET_EXEC := runwhenidle
-LDLIBS=-lXss -lX11 -lwayland-client -lm
+LDLIBS=-lXss -lX11 -lwayland-client
 CC=gcc
 ifeq ($(PREFIX),)
     PREFIX := /usr
