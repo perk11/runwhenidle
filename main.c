@@ -11,8 +11,6 @@
 #include <signal.h>
 #include <sys/timerfd.h>
 #include <sys/syscall.h>
-#include <dirent.h>
-#include <sys/stat.h>
 #include <pwd.h>
 
 #include <wayland-client.h>
@@ -20,6 +18,7 @@
 
 #include <X11/extensions/scrnsaver.h>
 
+#include "environment_guessing.h"
 #include "sleep_utils.h"
 #include "time_utils.h"
 #include "tty_utils.h"
@@ -58,8 +57,6 @@ volatile sig_atomic_t command_paused = 0;
 volatile sig_atomic_t sigchld_received = 0;
 pid_t pid;
 
-static int invoked_from_cron = 0;
-
 static struct wl_display *wayland_display = NULL;
 static struct wl_registry *wayland_registry = NULL;
 static struct wl_seat *wayland_seat = NULL;
@@ -67,335 +64,6 @@ static struct ext_idle_notifier_v1 *wayland_idle_notifier = NULL;
 static uint32_t wayland_idle_notifier_version = 0;
 static struct ext_idle_notification_v1 *wayland_idle_notification = NULL;
 static int wayland_idle_notify_available = 0;
-
-static int is_string_null_or_empty(const char *value) {
-    return value == NULL || value[0] == '\0';
-}
-
-static int file_is_socket(const char *path) {
-    struct stat st;
-    if (stat(path, &st) != 0) {
-        return 0;
-    }
-    return S_ISSOCK(st.st_mode) ? 1 : 0;
-}
-
-static int file_is_readable_regular_file(const char *path) {
-    struct stat st;
-    if (stat(path, &st) != 0) {
-        return 0;
-    }
-    if (!S_ISREG(st.st_mode)) {
-        return 0;
-    }
-    return access(path, R_OK) == 0 ? 1 : 0;
-}
-
-static int directory_exists_and_accessible(const char *path) {
-    struct stat st;
-    if (stat(path, &st) != 0) {
-        return 0;
-    }
-    if (!S_ISDIR(st.st_mode)) {
-        return 0;
-    }
-    return access(path, R_OK | X_OK) == 0 ? 1 : 0;
-}
-
-static int read_process_status_ppid(pid_t target_pid, pid_t *out_ppid) {
-    char status_path[64];
-    snprintf(status_path, sizeof(status_path), "/proc/%d/status", target_pid);
-
-    FILE *fp = fopen(status_path, "r");
-    if (!fp) {
-        return 0;
-    }
-
-    char line[256];
-    while (fgets(line, sizeof(line), fp)) {
-        if (strncmp(line, "PPid:", 5) == 0) {
-            long parsed = strtol(line + 5, NULL, 10);
-            fclose(fp);
-            if (parsed <= 0) {
-                return 0;
-            }
-            *out_ppid = (pid_t)parsed;
-            return 1;
-        }
-    }
-
-    fclose(fp);
-    return 0;
-}
-
-static int read_process_comm(pid_t target_pid, char *out_comm, size_t out_comm_size) {
-    char comm_path[64];
-    snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", target_pid);
-
-    FILE *fp = fopen(comm_path, "r");
-    if (!fp) {
-        return 0;
-    }
-
-    if (!fgets(out_comm, (int)out_comm_size, fp)) {
-        fclose(fp);
-        return 0;
-    }
-    fclose(fp);
-
-    out_comm[strcspn(out_comm, "\n")] = '\0';
-    return 1;
-}
-
-static int comm_matches_any_cron_name(const char *comm) {
-    const char *cron_names[] = { "cron", "crond", "anacron", "cronie", "fcron", NULL };
-    for (int i = 0; cron_names[i] != NULL; i++) {
-        if (strcmp(comm, cron_names[i]) == 0) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int detect_invoked_from_cron_via_process_tree(void) {
-    pid_t current_pid = getpid();
-
-    for (int depth = 0; depth < 12; depth++) {
-        pid_t parent_pid = 0;
-        if (!read_process_status_ppid(current_pid, &parent_pid)) {
-            break;
-        }
-        if (parent_pid <= 1) {
-            break;
-        }
-
-        char comm[128];
-        if (read_process_comm(parent_pid, comm, sizeof(comm))) {
-            if (comm_matches_any_cron_name(comm)) {
-                return 1;
-            }
-        }
-
-        current_pid = parent_pid;
-    }
-
-    return 0;
-}
-
-static int get_home_directory_for_current_user(char *out_home, size_t out_home_size) {
-    const char *home_env = getenv("HOME");
-    if (!is_string_null_or_empty(home_env)) {
-        snprintf(out_home, out_home_size, "%s", home_env);
-        return 1;
-    }
-
-    struct passwd *pw = getpwuid(getuid());
-    if (!pw || !pw->pw_dir) {
-        return 0;
-    }
-
-    snprintf(out_home, out_home_size, "%s", pw->pw_dir);
-    return 1;
-}
-
-static int build_xauthority_path_from_home_dir(char *xauthority_path,
-                                               size_t xauthority_path_size,
-                                               const char *home_dir) {
-    static const char xauthority_suffix[] = "/.Xauthority";
-    size_t home_dir_length = strnlen(home_dir, xauthority_path_size);
-    size_t suffix_length = sizeof(xauthority_suffix) - 1;
-
-    if (home_dir_length == 0 || home_dir_length >= xauthority_path_size) {
-        return 0;
-    }
-
-    if (home_dir_length + suffix_length + 1 > xauthority_path_size) {
-        return 0;
-    }
-
-    memcpy(xauthority_path, home_dir, home_dir_length);
-    memcpy(xauthority_path + home_dir_length, xauthority_suffix, suffix_length + 1);
-    return 1;
-}
-
-static void ensure_xauthority_is_set_if_possible(void) {
-    if (!is_string_null_or_empty(getenv("XAUTHORITY"))) {
-        return;
-    }
-
-    char home_dir[PATH_MAX];
-    if (!get_home_directory_for_current_user(home_dir, sizeof(home_dir))) {
-        return;
-    }
-
-    char xauthority_path[PATH_MAX];
-    if (!build_xauthority_path_from_home_dir(xauthority_path, sizeof(xauthority_path), home_dir)) {
-        return;
-    }
-
-    if (file_is_readable_regular_file(xauthority_path)) {
-        setenv("XAUTHORITY", xauthority_path, 0);
-    }
-}
-
-
-static int build_default_xdg_runtime_dir_for_current_user(char *out_runtime_dir, size_t out_runtime_dir_size) {
-    uid_t uid = getuid();
-    snprintf(out_runtime_dir, out_runtime_dir_size, "/run/user/%u", (unsigned)uid);
-    if (!directory_exists_and_accessible(out_runtime_dir)) {
-        return 0;
-    }
-    return 1;
-}
-
-static int find_best_wayland_socket_in_runtime_dir(const char *runtime_dir,
-                                                   char *out_socket_path,
-                                                   size_t out_socket_path_size,
-                                                   char *out_socket_name,
-                                                   size_t out_socket_name_size) {
-    DIR *dir = opendir(runtime_dir);
-    if (!dir) {
-        return 0;
-    }
-
-    int found = 0;
-    int best_numeric_suffix = INT_MAX;
-    char best_name[NAME_MAX + 1];
-    best_name[0] = '\0';
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strncmp(entry->d_name, "wayland-", 8) != 0) {
-            continue;
-        }
-
-        char full_path[PATH_MAX];
-        snprintf(full_path, sizeof(full_path), "%s/%s", runtime_dir, entry->d_name);
-
-        if (!file_is_socket(full_path)) {
-            continue;
-        }
-
-        int numeric_suffix = -1;
-        const char *suffix = entry->d_name + 8;
-        if (*suffix >= '0' && *suffix <= '9') {
-            numeric_suffix = (int)strtol(suffix, NULL, 10);
-        }
-
-        if (!found) {
-            found = 1;
-            best_numeric_suffix = (numeric_suffix >= 0) ? numeric_suffix : INT_MAX;
-            snprintf(best_name, sizeof(best_name), "%s", entry->d_name);
-            continue;
-        }
-
-        if (numeric_suffix >= 0 && numeric_suffix < best_numeric_suffix) {
-            best_numeric_suffix = numeric_suffix;
-            snprintf(best_name, sizeof(best_name), "%s", entry->d_name);
-            continue;
-        }
-
-        if (best_numeric_suffix == INT_MAX && numeric_suffix == -1) {
-            snprintf(best_name, sizeof(best_name), "%s", entry->d_name);
-        }
-    }
-
-    closedir(dir);
-
-    if (!found) {
-        return 0;
-    }
-
-    snprintf(out_socket_path, out_socket_path_size, "%s/%s", runtime_dir, best_name);
-    if (out_socket_name && out_socket_name_size > 0) {
-        snprintf(out_socket_name, out_socket_name_size, "%s", best_name);
-    }
-    return 1;
-}
-
-static int find_best_x11_display_from_socket_dir(char *out_display, size_t out_display_size) {
-    const char *x11_socket_dir = "/tmp/.X11-unix";
-    DIR *dir = opendir(x11_socket_dir);
-    if (!dir) {
-        return 0;
-    }
-
-    int found = 0;
-    int best_display_number = INT_MAX;
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_name[0] != 'X') {
-            continue;
-        }
-        const char *digits = entry->d_name + 1;
-        if (*digits < '0' || *digits > '9') {
-            continue;
-        }
-
-        int display_number = (int)strtol(digits, NULL, 10);
-
-        char socket_path[PATH_MAX];
-        snprintf(socket_path, sizeof(socket_path), "%s/%s", x11_socket_dir, entry->d_name);
-
-        if (!file_is_socket(socket_path)) {
-            continue;
-        }
-
-        if (!found || display_number < best_display_number) {
-            found = 1;
-            best_display_number = display_number;
-        }
-    }
-
-    closedir(dir);
-
-    if (!found) {
-        return 0;
-    }
-
-    snprintf(out_display, out_display_size, ":%d", best_display_number);
-    return 1;
-}
-
-static void best_effort_infer_graphical_session_environment_if_missing(void) {
-    if (!is_string_null_or_empty(getenv("WAYLAND_DISPLAY")) || !is_string_null_or_empty(getenv("DISPLAY"))) {
-        return;
-    }
-
-    char inferred_runtime_dir[PATH_MAX];
-    if (is_string_null_or_empty(getenv("XDG_RUNTIME_DIR"))) {
-        if (build_default_xdg_runtime_dir_for_current_user(inferred_runtime_dir, sizeof(inferred_runtime_dir))) {
-            setenv("XDG_RUNTIME_DIR", inferred_runtime_dir, 0);
-        }
-    }
-
-    const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
-    if (!is_string_null_or_empty(runtime_dir) && is_string_null_or_empty(getenv("WAYLAND_DISPLAY"))) {
-        char wayland_socket_path[PATH_MAX];
-        char wayland_socket_name[NAME_MAX + 1];
-        if (find_best_wayland_socket_in_runtime_dir(runtime_dir, wayland_socket_path, sizeof(wayland_socket_path),
-                                                    wayland_socket_name, sizeof(wayland_socket_name))) {
-            setenv("WAYLAND_DISPLAY", wayland_socket_name, 0);
-        }
-    }
-
-    if (is_string_null_or_empty(getenv("DISPLAY"))) {
-        char inferred_display[32];
-        if (find_best_x11_display_from_socket_dir(inferred_display, sizeof(inferred_display))) {
-            setenv("DISPLAY", inferred_display, 0);
-            ensure_xauthority_is_set_if_possible();
-        }
-    }
-
-    if (verbose && invoked_from_cron) {
-        const char *wd = getenv("WAYLAND_DISPLAY");
-        const char *xdg = getenv("XDG_RUNTIME_DIR");
-        const char *dpy = getenv("DISPLAY");
-        fprintf(stderr, "Detected cron context; inferred session vars: XDG_RUNTIME_DIR=%s WAYLAND_DISPLAY=%s DISPLAY=%s\n",
-                xdg ? xdg : "(unset)", wd ? wd : "(unset)", dpy ? dpy : "(unset)");
-    }
-}
 
 static int open_pid_file_descriptor_for_process(pid_t process_id) {
 #if defined(SYS_pidfd_open)
@@ -606,42 +274,6 @@ static const struct wl_registry_listener wayland_registry_listener = {
         .global_remove = wayland_registry_global_remove
 };
 
-static struct wl_display *connect_to_wayland_best_effort(void) {
-    struct wl_display *display = wl_display_connect(NULL);
-    if (display) {
-        return display;
-    }
-
-    const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
-    char inferred_runtime_dir[PATH_MAX];
-    if (is_string_null_or_empty(runtime_dir)) {
-        if (!build_default_xdg_runtime_dir_for_current_user(inferred_runtime_dir, sizeof(inferred_runtime_dir))) {
-            return NULL;
-        }
-        runtime_dir = inferred_runtime_dir;
-    }
-
-    char wayland_socket_path[PATH_MAX];
-    char wayland_socket_name[NAME_MAX + 1];
-    if (!find_best_wayland_socket_in_runtime_dir(runtime_dir, wayland_socket_path, sizeof(wayland_socket_path),
-                                                 wayland_socket_name, sizeof(wayland_socket_name))) {
-        return NULL;
-    }
-
-    display = wl_display_connect(wayland_socket_path);
-    if (!display) {
-        return NULL;
-    }
-
-    if (is_string_null_or_empty(getenv("XDG_RUNTIME_DIR"))) {
-        setenv("XDG_RUNTIME_DIR", runtime_dir, 0);
-    }
-    if (is_string_null_or_empty(getenv("WAYLAND_DISPLAY"))) {
-        setenv("WAYLAND_DISPLAY", wayland_socket_name, 0);
-    }
-
-    return display;
-}
 
 static int try_initialize_wayland_idle_backend(void) {
     wayland_display = connect_to_wayland_best_effort();
@@ -809,30 +441,9 @@ static int run_wayland_idle_event_loop(void) {
     }
 }
 
-static Display *open_x11_display_best_effort(void) {
-    Display *display = XOpenDisplay(NULL);
-    if (display) {
-        return display;
-    }
-
-    if (!is_string_null_or_empty(getenv("DISPLAY"))) {
-        return NULL;
-    }
-
-    char inferred_display[32];
-    if (!find_best_x11_display_from_socket_dir(inferred_display, sizeof(inferred_display))) {
-        return NULL;
-    }
-
-    setenv("DISPLAY", inferred_display, 0);
-    ensure_xauthority_is_set_if_possible();
-    return XOpenDisplay(NULL);
-}
-
 int main(int argc, char *argv[]) {
     parse_command_line_arguments(argc, argv);
 
-    invoked_from_cron = detect_invoked_from_cron_via_process_tree();
 
     if (external_pid == 0) {
         pid = run_shell_command(shell_command_to_run);
@@ -849,7 +460,7 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, sigterm_handler);
     signal(SIGCHLD, sigchld_handler);
 
-    best_effort_infer_graphical_session_environment_if_missing();
+    best_effort_infer_graphical_session_environment_if_missing(verbose);
 
     if (try_initialize_wayland_idle_backend()) {
         int wayland_loop_result = run_wayland_idle_event_loop();

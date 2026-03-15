@@ -4,7 +4,7 @@ CC=gcc
 ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
-SOURCES = time_utils.c sleep_utils.c tty_utils.c process_handling.c arguments_parsing.c  ext-idle-notify-v1-protocol.c main.c
+SOURCES = time_utils.c sleep_utils.c tty_utils.c file_utils.c string_utils.c process_handling.c arguments_parsing.c ext-idle-notify-v1-protocol.c environment_guessing.c main.c
 OBJECTS = $(SOURCES:.c=.o)
 CCFLAGS = -Werror=all
 all: executable
