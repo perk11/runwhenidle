@@ -120,7 +120,20 @@ void sigchld_handler(int signum) {
     (void)signum;
     sigchld_received = 1;
 }
+static void resume_paused_command_on_user_idle(void) {
+    if (!quiet) {
+        printf("Lack of user activity detected. ");
+        //intentionally no new line here, resume_command will print the rest of the message.
+    }
+    resume_command_recursively(pid);
+    command_paused = 0;
+}
 
+static void pause_running_command_on_user_activity(void) {
+    pause_command_recursively(pid);
+    if (debug) fprintf(stderr, "Command paused\n");
+    command_paused = 1;
+}
 static void wayland_idle_notification_idled(void *data, struct ext_idle_notification_v1 *notification) {
     (void)data;
     (void)notification;
@@ -133,16 +146,7 @@ static void wayland_idle_notification_idled(void *data, struct ext_idle_notifica
         fprintf(stderr, "Wayland idle: idled()\n");
     }
 
-    if (command_paused) {
-        if (verbose) {
-            fprintf(stderr, "Wayland idle: resuming command\n");
-        }
-        if (!quiet) {
-            printf("Lack of user activity detected. ");
-        }
-        resume_command_recursively(pid);
-        command_paused = 0;
-    }
+    resume_paused_command_on_user_idle();
 }
 
 static void wayland_idle_notification_resumed(void *data, struct ext_idle_notification_v1 *notification) {
@@ -156,13 +160,8 @@ static void wayland_idle_notification_resumed(void *data, struct ext_idle_notifi
     if (debug) {
         fprintf(stderr, "Wayland idle: resumed()\n");
     }
-
     if (!command_paused) {
-        if (verbose) {
-            fprintf(stderr, "Wayland idle: pausing command\n");
-        }
-        pause_command_recursively(pid);
-        command_paused = 1;
+        pause_running_command_on_user_activity();
     }
 }
 
@@ -220,10 +219,12 @@ int wait_for_pid_to_exit_checking_for_signals(void) {
         sleep_for_milliseconds(POLLING_INTERVAL_WHEN_NOT_MONITORING_MS);
     }
 }
+
 const struct ext_idle_notification_v1_listener wayland_idle_notification_listener = {
     .idled = wayland_idle_notification_idled,
     .resumed = wayland_idle_notification_resumed
 };
+
 int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     const int start_monitor_timer_file_descriptor = create_one_shot_timer_file_descriptor_after_ms(start_monitor_after_ms);
     if (start_monitor_timer_file_descriptor == -1) {
@@ -336,7 +337,72 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
 }
 
 
+static long long pause_or_resume_command_depending_on_user_activity(
+        long long sleep_time_ms,
+        unsigned long user_idle_time_ms) {
+    if (user_idle_time_ms >= user_idle_timeout_ms) {
+        if (debug)
+            fprintf(stderr, "Idle time: %lums, idle timeout: %lums, user is inactive\n", user_idle_time_ms,
+                    user_idle_timeout_ms);
+        if (command_paused) {
+            sleep_time_ms = POLLING_INTERVAL_MS; //reset to default value
+            if (verbose) {
+                fprintf(stderr, "Idle time: %lums, idle timeout: %lums, resuming command\n", user_idle_time_ms,
+                        user_idle_timeout_ms);
+            }
+            resume_paused_command_on_user_idle();
+            if (!quiet) {
+                printf("Lack of user activity detected. ");
+                //intentionally no new line here, resume_command will print the rest of the message.
+            }
+            resume_command_recursively(pid);
+            command_paused = 0;
+        }
+    } else {
+        struct timespec time_when_starting_to_pause;
+        int command_was_paused_this_iteration = 0;
+        // User is active
+        if (!command_paused) {
+            clock_gettime(CLOCK_MONOTONIC, &time_when_starting_to_pause);
+            if (verbose) {
+                fprintf(stderr, "Idle time: %lums.\n", user_idle_time_ms);
+            }
+            pause_running_command_on_user_activity();
+            command_was_paused_this_iteration = 1;
+        }
+        sleep_time_ms = user_idle_timeout_ms - user_idle_time_ms;
+        if (debug) fprintf(stderr, "Target sleep time: %llums\n", sleep_time_ms);
+        if (command_was_paused_this_iteration) {
+            if (debug) fprintf(stderr, "Command was paused this iteration\n");
+            struct timespec time_before_sleep;
+            clock_gettime(CLOCK_MONOTONIC, &time_before_sleep);
+            long long pausing_time_ms = get_elapsed_time_ms(time_when_starting_to_pause, time_before_sleep);
+            if (debug)
+                fprintf(stderr,
+                        "Target sleep time before taking into account time it took to pause: %lldms, time it took to pause: %lldms\n",
+                        sleep_time_ms, pausing_time_ms);
+            sleep_time_ms = sleep_time_ms - pausing_time_ms;
 
+        }
+
+        if (sleep_time_ms < POLLING_INTERVAL_MS) {
+            if (debug)
+                fprintf(stderr,
+                        "Target sleep time %lldms is less than polling interval %lldms, resetting it to polling interval\n",
+                        sleep_time_ms, POLLING_INTERVAL_MS);
+            sleep_time_ms = POLLING_INTERVAL_MS;
+        }
+        if (verbose) {
+            fprintf(
+                    stderr,
+                    "Polling every second is temporarily disabled due to user activity, idle time: %lums, next activity check scheduled in %lldms\n",
+                    user_idle_time_ms,
+                    sleep_time_ms
+            );
+        }
+    }
+    return sleep_time_ms;
+}
 int main(int argc, char *argv[]) {
     parse_command_line_arguments(argc, argv);
 
@@ -415,20 +481,9 @@ int main(int argc, char *argv[]) {
         exit_if_pid_has_finished(pid);
 
         if (monitoring_started) {
-            if (user_idle_time_ms >= user_idle_timeout_ms) {
-                if (command_paused) {
-                    if (!quiet) {
-                        printf("Lack of user activity detected. ");
-                    }
-                    resume_command_recursively(pid);
-                    command_paused = 0;
-                }
-            } else {
-                if (!command_paused) {
-                    pause_command_recursively(pid);
-                    command_paused = 1;
-                }
-            }
+            sleep_time_ms = pause_or_resume_command_depending_on_user_activity(
+                sleep_time_ms,
+                user_idle_time_ms);
         }
         if (debug) fprintf(stderr, "Sleeping for %lldms\n", sleep_time_ms);
         sleep_for_milliseconds(sleep_time_ms);
