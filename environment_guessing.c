@@ -10,7 +10,7 @@
 #include "file_utils.h"
 #include "string_utils.h"
 
-static int find_best_wayland_socket_in_runtime_dir(const char *runtime_dir,
+int find_best_wayland_socket_in_runtime_dir(const char *runtime_dir,
                                                    char *out_socket_path,
                                                    size_t out_socket_path_size,
                                                    char *out_socket_name,
@@ -75,7 +75,7 @@ static int find_best_wayland_socket_in_runtime_dir(const char *runtime_dir,
     return 1;
 }
 
-static int build_default_xdg_runtime_dir_for_current_user(char *out_runtime_dir, size_t out_runtime_dir_size) {
+int build_default_xdg_runtime_dir_for_current_user(char *out_runtime_dir, size_t out_runtime_dir_size) {
     uid_t uid = getuid();
     snprintf(out_runtime_dir, out_runtime_dir_size, "/run/user/%u", (unsigned)uid);
     if (!directory_exists_and_accessible(out_runtime_dir)) {
@@ -205,42 +205,6 @@ void best_effort_infer_graphical_session_environment_if_missing(bool log_when_in
      }
  }
 
-struct wl_display *connect_to_wayland_best_effort(void) {
-     struct wl_display *display = wl_display_connect(NULL);
-     if (display) {
-         return display;
-     }
-
-     const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
-     char inferred_runtime_dir[PATH_MAX];
-     if (is_string_null_or_empty(runtime_dir)) {
-         if (!build_default_xdg_runtime_dir_for_current_user(inferred_runtime_dir, sizeof(inferred_runtime_dir))) {
-             return NULL;
-         }
-         runtime_dir = inferred_runtime_dir;
-     }
-
-     char wayland_socket_path[PATH_MAX];
-     char wayland_socket_name[NAME_MAX + 1];
-     if (!find_best_wayland_socket_in_runtime_dir(runtime_dir, wayland_socket_path, sizeof(wayland_socket_path),
-                                                  wayland_socket_name, sizeof(wayland_socket_name))) {
-         return NULL;
-                                                  }
-
-     display = wl_display_connect(wayland_socket_path);
-     if (!display) {
-         return NULL;
-     }
-
-     if (is_string_null_or_empty(getenv("XDG_RUNTIME_DIR"))) {
-         setenv("XDG_RUNTIME_DIR", runtime_dir, 0);
-     }
-     if (is_string_null_or_empty(getenv("WAYLAND_DISPLAY"))) {
-         setenv("WAYLAND_DISPLAY", wayland_socket_name, 0);
-     }
-
-     return display;
- }
 
 Display *open_x11_display_best_effort(void) {
      Display *display = XOpenDisplay(NULL);

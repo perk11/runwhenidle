@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <dirent.h>
 
@@ -290,4 +291,16 @@ void exit_if_pid_has_finished(pid_t pid) {
         }
         exit(exit_code);
     }
+}
+
+int open_pid_file_descriptor_for_process(pid_t process_id) {
+#if defined(SYS_pidfd_open)
+    return (int)syscall(SYS_pidfd_open, process_id, 0);
+#elif defined(__NR_pidfd_open)
+    return (int)syscall(__NR_pidfd_open, process_id, 0);
+#else
+    (void)process_id;
+    errno = ENOSYS;
+    return -1;
+#endif
 }
