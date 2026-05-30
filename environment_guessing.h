@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <X11/Xlib.h>
 
-void best_effort_infer_graphical_session_environment_if_missing(bool log_when_inferred);
+void best_effort_infer_graphical_session_environment_if_missing(bool verbose);
 Display *open_x11_display_best_effort(void);
 int build_default_xdg_runtime_dir_for_current_user(char *out_runtime_dir, size_t out_runtime_dir_size);
 int find_best_wayland_socket_in_runtime_dir(const char *runtime_dir,
