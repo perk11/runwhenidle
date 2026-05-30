@@ -170,7 +170,7 @@ static int find_best_x11_display_from_socket_dir(char *out_display, size_t out_d
     return 1;
 }
 
-void best_effort_infer_graphical_session_environment_if_missing(const bool log_when_inferred) {
+void best_effort_infer_graphical_session_environment_if_missing(const bool verbose) {
      if (!is_string_null_or_empty(getenv("WAYLAND_DISPLAY")) || !is_string_null_or_empty(getenv("DISPLAY"))) {
          return;
      }
@@ -179,6 +179,9 @@ void best_effort_infer_graphical_session_environment_if_missing(const bool log_w
      if (is_string_null_or_empty(getenv("XDG_RUNTIME_DIR"))) {
          if (build_default_xdg_runtime_dir_for_current_user(inferred_runtime_dir, sizeof(inferred_runtime_dir))) {
              setenv("XDG_RUNTIME_DIR", inferred_runtime_dir, 0);
+             if (verbose) {
+                 fprintf(stderr, "XDG_RUNTIME_DIR was missing in env and got inferred to \"%s\"\n", inferred_runtime_dir);
+             }
          }
      }
 
@@ -189,6 +192,9 @@ void best_effort_infer_graphical_session_environment_if_missing(const bool log_w
          if (find_best_wayland_socket_in_runtime_dir(runtime_dir, wayland_socket_path, sizeof(wayland_socket_path),
                                                      wayland_socket_name, sizeof(wayland_socket_name))) {
              setenv("WAYLAND_DISPLAY", wayland_socket_name, 0);
+             if (verbose) {
+                 fprintf(stderr, "WAYLAND_DISPLAY was missing in env and got inferred to \"%s\"\n", wayland_socket_name);
+             }
          }
      }
 
@@ -196,15 +202,18 @@ void best_effort_infer_graphical_session_environment_if_missing(const bool log_w
          char inferred_display[32];
          if (find_best_x11_display_from_socket_dir(inferred_display, sizeof(inferred_display))) {
              setenv("DISPLAY", inferred_display, 0);
+             if (verbose) {
+                 fprintf(stderr, "DISPLAY was missing in env and got inferred to \"%s\"\n", inferred_display);
+             }
              ensure_xauthority_is_set_if_possible();
          }
      }
 
-     if (log_when_inferred) {
+     if (verbose) {
          const char *wd = getenv("WAYLAND_DISPLAY");
          const char *xdg = getenv("XDG_RUNTIME_DIR");
          const char *dpy = getenv("DISPLAY");
-         fprintf(stderr, "inferred session vars: XDG_RUNTIME_DIR=%s WAYLAND_DISPLAY=%s DISPLAY=%s\n",
+         fprintf(stderr, "session vars: XDG_RUNTIME_DIR=%s WAYLAND_DISPLAY=%s DISPLAY=%s\n",
                  xdg ? xdg : "(unset)", wd ? wd : "(unset)", dpy ? dpy : "(unset)");
      }
  }
