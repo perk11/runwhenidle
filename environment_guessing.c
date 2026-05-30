@@ -41,7 +41,11 @@ int find_best_wayland_socket_in_runtime_dir(const char *runtime_dir,
         int numeric_suffix = -1;
         const char *suffix = entry->d_name + 8;
         if (*suffix >= '0' && *suffix <= '9') {
-            numeric_suffix = (int)strtol(suffix, NULL, 10);
+            char *endptr;
+            long val = strtol(suffix, &endptr, 10);
+            if (*endptr == '\0') {
+                numeric_suffix = (int)val;
+            }
         }
 
         if (!found) {
