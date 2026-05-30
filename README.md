@@ -62,7 +62,7 @@ Other Distros: You will need to compile runwhenidle yourself.
 
 ## Compiling
 
-Make sure you have `gcc`, `make`, `git` and `libxss-dev` installed. Run `make release`. This should produce a binary
+Make sure you have `gcc`, `make`, `git`, `libxss-dev` and `libwayland-dev` installed. Run `make release`. This should produce a binary
 file `runwhenidle` in the project directory.
 
 If you want to install it system-wide, run `sudo make install` or simply `sudo cp ./runwhenidle /usr/bin`.
