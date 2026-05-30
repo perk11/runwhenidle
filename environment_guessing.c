@@ -91,14 +91,10 @@ static int build_xauthority_path_from_home_dir(char *xauthority_path,
                                                size_t xauthority_path_size,
                                                const char *home_dir) {
     static const char xauthority_suffix[] = "/.Xauthority";
-    size_t home_dir_length = strnlen(home_dir, xauthority_path_size);
+    size_t home_dir_length = strlen(home_dir);
     size_t suffix_length = sizeof(xauthority_suffix) - 1;
 
-    if (home_dir_length == 0 || home_dir_length >= xauthority_path_size) {
-        return 0;
-    }
-
-    if (home_dir_length + suffix_length + 1 > xauthority_path_size) {
+    if (home_dir_length == 0 || home_dir_length > xauthority_path_size - suffix_length - 1) {
         return 0;
     }
 
