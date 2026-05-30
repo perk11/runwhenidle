@@ -87,7 +87,7 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 ### Known issues
 
-1. Wayland support is currently only present in the main branch. It has worked well for me for 2 months, but some clean up is needed for a release.
+1. Wayland support is currently only present in the main branch.
 2. When monitoring an existing pid, once it gets paused, it gets detached from the terminal it was in.
    Running "fg" command could be a workaround to get it reattached, but it is required after every pause.
 
