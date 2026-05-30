@@ -99,8 +99,11 @@ static int try_initialize_wayland_idle_backend(const struct wl_registry_listener
 
 int start_wayland_idle_notification_object(
     const struct ext_idle_notification_v1_listener *wayland_idle_notification_listener) {
-    if (!wayland_idle_notify_available || wayland_idle_notification != NULL) {
+    if (wayland_idle_notification != NULL) {
         return 0;
+    }
+    if (!wayland_idle_notify_available) {
+        return -1;
     }
 
     uint32_t timeout_ms_for_protocol = (user_idle_timeout_ms > UINT32_MAX)
