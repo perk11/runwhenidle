@@ -49,7 +49,7 @@ static struct wl_display *connect_to_wayland_best_effort(void) {
     if (!find_best_wayland_socket_in_runtime_dir(runtime_dir, wayland_socket_path, sizeof(wayland_socket_path),
                                                  wayland_socket_name, sizeof(wayland_socket_name))) {
         return NULL;
-                                                 }
+    }
 
     display = wl_display_connect(wayland_socket_path);
     if (!display) {
@@ -97,19 +97,22 @@ static int try_initialize_wayland_idle_backend(const struct wl_registry_listener
     return 1;
 }
 
-int start_wayland_idle_notification_object(const struct ext_idle_notification_v1_listener *wayland_idle_notification_listener) {
+int start_wayland_idle_notification_object(
+    const struct ext_idle_notification_v1_listener *wayland_idle_notification_listener) {
     if (!wayland_idle_notify_available || wayland_idle_notification != NULL) {
         return 0;
     }
 
-    uint32_t timeout_ms_for_protocol = (user_idle_timeout_ms > UINT32_MAX) ? UINT32_MAX : (uint32_t)user_idle_timeout_ms;
+    uint32_t timeout_ms_for_protocol = (user_idle_timeout_ms > UINT32_MAX)
+                                           ? UINT32_MAX
+                                           : (uint32_t) user_idle_timeout_ms;
 
     if (wayland_idle_notifier_version >= 2) {
         wayland_idle_notification = ext_idle_notifier_v1_get_input_idle_notification(
-                wayland_idle_notifier, timeout_ms_for_protocol, wayland_seat);
+            wayland_idle_notifier, timeout_ms_for_protocol, wayland_seat);
     } else {
         wayland_idle_notification = ext_idle_notifier_v1_get_idle_notification(
-                wayland_idle_notifier, timeout_ms_for_protocol, wayland_seat);
+            wayland_idle_notifier, timeout_ms_for_protocol, wayland_seat);
     }
 
     if (!wayland_idle_notification) {
@@ -120,12 +123,13 @@ int start_wayland_idle_notification_object(const struct ext_idle_notification_v1
     wl_display_flush(wayland_display);
     return 1;
 }
+
 static void wayland_registry_global(void *data,
                                     struct wl_registry *registry,
                                     uint32_t name,
                                     const char *interface,
                                     uint32_t version) {
-    (void)data;
+    (void) data;
 
     if (strcmp(interface, "wl_seat") == 0 && wayland_seat == NULL) {
         wayland_seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
@@ -142,9 +146,9 @@ static void wayland_registry_global(void *data,
 static void wayland_registry_global_remove(void *data,
                                            struct wl_registry *registry,
                                            uint32_t name) {
-    (void)data;
-    (void)registry;
-    (void)name;
+    (void) data;
+    (void) registry;
+    (void) name;
 }
 
 static const struct wl_registry_listener wayland_registry_listener = {
