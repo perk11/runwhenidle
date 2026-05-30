@@ -201,6 +201,53 @@ static int create_periodic_timer_file_descriptor_every_ms(long interval_ms) {
     return timer_file_descriptor;
 }
 
+static void close_file_descriptor_if_open(int *file_descriptor, const char *description) {
+    if (*file_descriptor < 0) {
+        return;
+    }
+
+    if (close(*file_descriptor) < 0) {
+        const int saved_errno = errno;
+        fprintf_error("Failed to close %s file descriptor %d: %s\n",
+                      description,
+                      *file_descriptor,
+                      strerror(saved_errno));
+    }
+
+    *file_descriptor = -1;
+}
+
+static int consume_timer_file_descriptor_checked(int timer_file_descriptor, const char *description) {
+    uint64_t expirations = 0;
+    ssize_t bytes_read;
+
+    do {
+        bytes_read = read(timer_file_descriptor, &expirations, sizeof(expirations));
+    } while (bytes_read < 0 && errno == EINTR);
+
+    if (bytes_read == sizeof(expirations)) {
+        return 0;
+    }
+
+    if (bytes_read < 0 && errno == EAGAIN) {
+        return 0;
+    }
+
+    if (bytes_read < 0) {
+        const int saved_errno = errno;
+        fprintf_error("Failed to read %s timer file descriptor: %s\n",
+                      description,
+                      strerror(saved_errno));
+    } else {
+        fprintf_error("Short read from %s timer file descriptor: got %zd bytes, expected %zu\n",
+                      description,
+                      bytes_read,
+                      sizeof(expirations));
+    }
+
+    return -1;
+}
+
 static void consume_timer_file_descriptor(int timer_file_descriptor) {
     uint64_t expirations = 0;
     (void)read(timer_file_descriptor, &expirations, sizeof(expirations));
@@ -238,12 +285,16 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     }
 
     const int process_exit_wait_file_descriptor = open_pid_file_descriptor_for_process(pid);
+    int external_pid_fallback_check_timer_file_descriptor = -1;
     if (process_exit_wait_file_descriptor == -1) {
         fprintf_error("Failed to open file descriptor for pid %d: %s \n", pid, strerror(errno));
-    }
-    int external_pid_fallback_check_timer_file_descriptor = -1;
-    if (process_exit_wait_file_descriptor < 0 && external_pid != 0) {
-        external_pid_fallback_check_timer_file_descriptor = create_periodic_timer_file_descriptor_every_ms(1000);
+        if (external_pid != 0) {
+            external_pid_fallback_check_timer_file_descriptor = create_periodic_timer_file_descriptor_every_ms(1000);
+            if (external_pid_fallback_check_timer_file_descriptor == -1) {
+                fprintf_error("Failed to create periodic timer file descriptor for external pid fallback\n");
+                return -1;
+            }
+        }
     }
 
     struct pollfd poll_file_descriptors[4];
@@ -271,7 +322,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
 
     while (1) {
         if (interruption_received) {
-            if (start_monitor_timer_file_descriptor >= 0) close(start_monitor_timer_file_descriptor);
+            close(start_monitor_timer_file_descriptor);
             if (process_exit_wait_file_descriptor >= 0) close(process_exit_wait_file_descriptor);
             if (external_pid_fallback_check_timer_file_descriptor >= 0) close(external_pid_fallback_check_timer_file_descriptor);
             return handle_interruption();
@@ -425,9 +476,11 @@ int main(int argc, char *argv[]) {
 
     const int wayland_loop_result = try_monitor_wayland_idle_notify(run_wayland_idle_event_loop);
     if (wayland_loop_result == 0) {
+        //todo: other exit codes are also possible
         return 0;
     }
 
+    //Wayland failed, try X11
     x_display = open_x11_display_best_effort();
     if (!x_display) {
         xscreensaver_is_available = 0;
@@ -442,7 +495,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!xscreensaver_is_available) {
-        fprintf_error("No available method for detecting user idle time on the system, user will be considered idle to allow the command to finish.\n");
+        fprintf_error("No available method for detecting user idle time on the system, user will be considered always idle to allow the command to finish.\n");
     }
 
     struct timespec time_when_command_started;
@@ -452,7 +505,11 @@ int main(int argc, char *argv[]) {
     unsigned long user_idle_time_ms = 0;
 
     if (verbose) {
-        fprintf(stderr, "Starting to monitor user activity (X11 polling)\n");
+        if (xscreensaver_is_available) {
+            fprintf(stderr, "Starting to monitor user activity (X11 polling)\n");
+        } else {
+            fprintf(stderr, "Starting to monitor the process in fallback mode\n");
+        }
     }
 
     while (1) {
