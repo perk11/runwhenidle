@@ -33,7 +33,7 @@ always handled by the OS.
 
 
 ### Wayland
-On Wayland ext_idle_notification_v1 is used.
+On Wayland ext_idle_notification_v1 is used. You will need to compile from source until a release is available.
 
 ### X11
 On X11 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened.
@@ -87,8 +87,7 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 ### Known issues
 
-1. Wayland support is currently only present in the main branch.
-2. When monitoring an existing pid, once it gets paused, it gets detached from the terminal it was in.
+1. When monitoring an existing pid, once it gets paused, it gets detached from the terminal it was in.
    Running "fg" command could be a workaround to get it reattached, but it is required after every pause.
 
 ### Building Ubuntu/Debian package
