@@ -73,6 +73,7 @@ int handle_interruption() {
             }
             fprintf(stderr, "\n");
         }
+        command_paused = 0;
         resume_command_recursively(pid);
     }
     if (external_pid) {
@@ -431,8 +432,10 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     close_file_descriptor_if_open(&start_monitor_timer_file_descriptor, "start-monitor timer");
     close_file_descriptor_if_open(&process_exit_wait_file_descriptor, "process-exit");
     close_file_descriptor_if_open(&external_pid_fallback_check_timer_file_descriptor, "external-pid fallback timer");
-
-    return wait_for_pid_to_exit_checking_for_signals();
+    if (verbose) {
+        fprintf(stderr, "Wayland connection lost or loop finished.\n");
+    }
+    return handle_interruption();
 
 run_wayland_idle_event_loop_cleanup:
     close_file_descriptor_if_open(&start_monitor_timer_file_descriptor, "start-monitor timer");
@@ -457,12 +460,6 @@ static long long pause_or_resume_command_depending_on_user_activity(
                         user_idle_timeout_ms);
             }
             resume_paused_command_on_user_idle();
-            if (!quiet) {
-                printf("Lack of user activity detected. ");
-                //intentionally no new line here, resume_command will print the rest of the message.
-            }
-            resume_command_recursively(pid);
-            command_paused = 0;
         }
     } else {
         struct timespec time_when_starting_to_pause;
