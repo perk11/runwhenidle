@@ -435,7 +435,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     if (verbose) {
         fprintf(stderr, "Wayland connection lost or loop finished.\n");
     }
-    return handle_interruption();
+    return wait_for_pid_to_exit_checking_for_signals();
 
 run_wayland_idle_event_loop_cleanup:
     close_file_descriptor_if_open(&start_monitor_timer_file_descriptor, "start-monitor timer");
