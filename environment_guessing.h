@@ -1,5 +1,7 @@
 #ifndef RUNWHENIDLE_ENVIRONMENT_GUESSING_H
 #define RUNWHENIDLE_ENVIRONMENT_GUESSING_H
+#include <stdbool.h>
+#include <stddef.h>
 #include <X11/Xlib.h>
 
 void best_effort_infer_graphical_session_environment_if_missing(bool log_when_inferred);
