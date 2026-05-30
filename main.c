@@ -3,15 +3,10 @@
 #include <time.h>
 #include <sys/wait.h>
 #include <limits.h>
-#include <stdint.h>
 #include <string.h>
 #include <errno.h>
 #include <poll.h>
-#include <unistd.h>
 #include <signal.h>
-#include <sys/timerfd.h>
-#include <sys/syscall.h>
-#include <pwd.h>
 
 #include <wayland-client.h>
 
