@@ -185,7 +185,7 @@ void best_effort_infer_graphical_session_environment_if_missing(bool log_when_in
          if (find_best_wayland_socket_in_runtime_dir(runtime_dir, wayland_socket_path, sizeof(wayland_socket_path),
                                                      wayland_socket_name, sizeof(wayland_socket_name))) {
              setenv("WAYLAND_DISPLAY", wayland_socket_name, 0);
-                                                     }
+         }
      }
 
      if (is_string_null_or_empty(getenv("DISPLAY"))) {
