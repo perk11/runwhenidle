@@ -253,6 +253,8 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
                 .revents = 0
         };
     }
+    //The child could exit after kill(pid, 0) succeeded but before SIGCHLD is delivered/observed
+    exit_if_pid_has_finished(pid);
 
     while (1) {
         if (interruption_received) {
