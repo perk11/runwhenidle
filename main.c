@@ -36,9 +36,9 @@ int monitoring_started = 0;
 enum pause_method pause_method = PAUSE_METHOD_SIGSTOP;
 long start_monitor_after_ms = 300;
 long unsigned user_idle_timeout_ms = 300000;
-constexpr long long POLLING_INTERVAL_MS = 1000;
-constexpr long long POLLING_INTERVAL_BEFORE_STARTING_MONITORING_MS = 100;
-constexpr long long POLLING_INTERVAL_WHEN_NOT_MONITORING_MS = 100;
+const long long POLLING_INTERVAL_MS = 1000;
+const long long POLLING_INTERVAL_BEFORE_STARTING_MONITORING_MS = 100;
+const long long POLLING_INTERVAL_WHEN_NOT_MONITORING_MS = 100;
 const char *pause_method_string[] = {
         //order must match order in pause_method enum
         [PAUSE_METHOD_SIGTSTP] = "SIGTSTP",

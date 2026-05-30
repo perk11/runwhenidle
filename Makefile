@@ -6,7 +6,7 @@ ifeq ($(PREFIX),)
 endif
 SOURCES = time_utils.c sleep_utils.c tty_utils.c descriptor_utils.c file_utils.c string_utils.c process_handling.c arguments_parsing.c ext-idle-notify-v1-protocol.c environment_guessing.c wayland.c main.c
 OBJECTS = $(SOURCES:.c=.o)
-CCFLAGS = -Werror=all -std=gnu23
+CCFLAGS = -Werror=all -std=gnu17
 all: executable
 
 release: CCFLAGS += -O3

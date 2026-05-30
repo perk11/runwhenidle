@@ -1,12 +1,12 @@
 #include <dirent.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <wayland-client.h>
 #include <X11/Xlib.h>
-
 #include "file_utils.h"
 #include "string_utils.h"
 
@@ -170,7 +170,7 @@ static int find_best_x11_display_from_socket_dir(char *out_display, size_t out_d
     return 1;
 }
 
-void best_effort_infer_graphical_session_environment_if_missing(bool log_when_inferred) {
+void best_effort_infer_graphical_session_environment_if_missing(const bool log_when_inferred) {
      if (!is_string_null_or_empty(getenv("WAYLAND_DISPLAY")) || !is_string_null_or_empty(getenv("DISPLAY"))) {
          return;
      }
