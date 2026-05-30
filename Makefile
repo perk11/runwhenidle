@@ -18,7 +18,7 @@ debug: executable
 executable: CCFLAGS += -DVERSION=\"$(shell git describe --tags 2>/dev/null || (echo -n "0.0-dev-" && git rev-parse HEAD))\"
 
 %.o: %.c
-	$(CC) $(CCFLAGS) -c $< -o $@ $(LDFLAGS) $(LDLIBS)
+	$(CC) $(CCFLAGS) -c $< -o $@
 
 executable: $(OBJECTS)
 	$(CC) $(CCFLAGS) $(OBJECTS) -o $(TARGET_EXEC) $(LDFLAGS) $(LDLIBS)
