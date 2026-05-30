@@ -86,7 +86,7 @@ pid_t read_parent_process_id(pid_t process_id) {
     ;
     char file_contents[MAX_STAT_FILE_READ_LENGTH];
     if (!fgets(file_contents, MAX_STAT_FILE_READ_LENGTH, stat_file)) {
-        fprintf_error("Failed to read from %s\n", stat_file);
+        fprintf_error("Failed to read from %s\n", stat_file_path);
         fclose(stat_file);
         return 0;
     }
