@@ -156,7 +156,7 @@ int try_monitor_wayland_idle_notify(WaylandLoopFunction wayland_loop_function) {
     if (!try_initialize_wayland_idle_backend(&wayland_registry_listener)) {
         return -1;
     }
-    int wayland_loop_result = wayland_loop_function(wayland_display);
+    const int wayland_loop_result = wayland_loop_function(wayland_display);
 
     if (wayland_idle_notification) {
         ext_idle_notification_v1_destroy(wayland_idle_notification);
