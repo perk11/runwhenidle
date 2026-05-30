@@ -85,11 +85,11 @@ pid_t read_parent_process_id(pid_t process_id) {
             + 1 //space
     ;
     char file_contents[MAX_STAT_FILE_READ_LENGTH];
-    if (!fgets(file_contents, MAX_STAT_FILE_READ_LENGTH, stat_file)) {
-        fprintf_error("Failed to read from %s\n", stat_file);
+    char* fgets_result = fgets(file_contents, MAX_STAT_FILE_READ_LENGTH, stat_file);
+    fclose(stat_file);
+    if (!fgets_result) {
         return 0;
     }
-    fclose(stat_file);
     const int MIN_STAT_FILE_READ_CLOSING_PARENTHESIS_POSITION =
             1 //min PID length
             + 1//space
