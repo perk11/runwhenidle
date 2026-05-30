@@ -304,7 +304,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
 
             const int saved_errno = errno;
             fprintf_error("poll() failed: %s\n", strerror(saved_errno));
-            result = 1;
+            result = -1;
             goto run_wayland_idle_event_loop_cleanup;
         }
 
@@ -529,8 +529,8 @@ int main(int argc, char *argv[]) {
     best_effort_infer_graphical_session_environment_if_missing(verbose);
 
     const int wayland_loop_result = try_monitor_wayland_idle_notify(run_wayland_idle_event_loop);
-    if (wayland_loop_result == 0) {
-        return 0;
+    if (wayland_loop_result >= 0) {
+        return wayland_loop_result;
     }
 
     //Wayland failed, try X11
