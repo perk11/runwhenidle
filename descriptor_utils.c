@@ -1,7 +1,3 @@
-//
-// Created by perk11 on 5/29/26.
-//
-
 #include "descriptor_utils.h"
 
 #include <errno.h>

@@ -1,7 +1,3 @@
-//
-// Created by perk11 on 5/29/26.
-//
-
 #ifndef RUNWHENIDLE_DESCRIPTOR_UTILS_H
 #define RUNWHENIDLE_DESCRIPTOR_UTILS_H
 
