@@ -168,7 +168,6 @@ int wait_for_pid_to_exit_checking_for_signals(void) {
         }
         if (sigchld_received) {
             sigchld_received = 0;
-            exit_if_pid_has_finished(pid);
         }
         exit_if_pid_has_finished(pid);
         sleep_for_milliseconds(POLLING_INTERVAL_WHEN_NOT_MONITORING_MS);
