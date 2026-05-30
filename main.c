@@ -23,6 +23,7 @@
 #include "tty_utils.h"
 #include "process_handling.h"
 #include "arguments_parsing.h"
+#include "descriptor_utils.h"
 #include "ext-idle-notify-v1-client-protocol.h"
 #include "pause_methods.h"
 #include "wayland.h"
@@ -165,94 +166,6 @@ static void wayland_idle_notification_resumed(void *data, struct ext_idle_notifi
     }
 }
 
-static int create_one_shot_timer_file_descriptor_after_ms(long delay_ms) {
-    int timer_file_descriptor = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
-    if (timer_file_descriptor < 0) {
-        return -1;
-    }
-
-    struct itimerspec timer_spec = {0};
-    timer_spec.it_value.tv_sec = delay_ms / 1000;
-    timer_spec.it_value.tv_nsec = (delay_ms % 1000) * 1000000L;
-
-    if (timerfd_settime(timer_file_descriptor, 0, &timer_spec, NULL) < 0) {
-        close(timer_file_descriptor);
-        return -1;
-    }
-
-    return timer_file_descriptor;
-}
-static int create_periodic_timer_file_descriptor_every_ms(long interval_ms) {
-    int timer_file_descriptor = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC | TFD_NONBLOCK);
-    if (timer_file_descriptor < 0) {
-        return -1;
-    }
-
-    struct itimerspec timer_spec = {0};
-    timer_spec.it_value.tv_sec = interval_ms / 1000;
-    timer_spec.it_value.tv_nsec = (interval_ms % 1000) * 1000000L;
-    timer_spec.it_interval = timer_spec.it_value;
-
-    if (timerfd_settime(timer_file_descriptor, 0, &timer_spec, NULL) < 0) {
-        close(timer_file_descriptor);
-        return -1;
-    }
-
-    return timer_file_descriptor;
-}
-
-static void close_file_descriptor_if_open(int *file_descriptor, const char *description) {
-    if (*file_descriptor < 0) {
-        return;
-    }
-
-    if (close(*file_descriptor) < 0) {
-        const int saved_errno = errno;
-        fprintf_error("Failed to close %s file descriptor %d: %s\n",
-                      description,
-                      *file_descriptor,
-                      strerror(saved_errno));
-    }
-
-    *file_descriptor = -1;
-}
-
-static int consume_timer_file_descriptor_checked(int timer_file_descriptor, const char *description) {
-    uint64_t expirations = 0;
-    ssize_t bytes_read;
-
-    do {
-        bytes_read = read(timer_file_descriptor, &expirations, sizeof(expirations));
-    } while (bytes_read < 0 && errno == EINTR);
-
-    if (bytes_read == sizeof(expirations)) {
-        return 0;
-    }
-
-    if (bytes_read < 0 && errno == EAGAIN) {
-        return 0;
-    }
-
-    if (bytes_read < 0) {
-        const int saved_errno = errno;
-        fprintf_error("Failed to read %s timer file descriptor: %s\n",
-                      description,
-                      strerror(saved_errno));
-    } else {
-        fprintf_error("Short read from %s timer file descriptor: got %zd bytes, expected %zu\n",
-                      description,
-                      bytes_read,
-                      sizeof(expirations));
-    }
-
-    return -1;
-}
-
-static void consume_timer_file_descriptor(int timer_file_descriptor) {
-    uint64_t expirations = 0;
-    (void)read(timer_file_descriptor, &expirations, sizeof(expirations));
-}
-
 int wait_for_pid_to_exit_checking_for_signals(void) {
     while (1) {
         if (interruption_received) {
@@ -273,26 +186,38 @@ const struct ext_idle_notification_v1_listener wayland_idle_notification_listene
 };
 
 int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
-    const int start_monitor_timer_file_descriptor = create_one_shot_timer_file_descriptor_after_ms(start_monitor_after_ms);
+    int result = -1;
+    int wayland_flush_is_pending = 0;
+
+    int start_monitor_timer_file_descriptor = create_one_shot_timer_file_descriptor_after_ms(start_monitor_after_ms);
+    int process_exit_wait_file_descriptor = -1;
+    int external_pid_fallback_check_timer_file_descriptor = -1;
+
     if (start_monitor_timer_file_descriptor == -1) {
-        fprintf_error("Wayland idle event loop aborted: failed to create a timer file descriptor\n");
-        return -1;
-    }
-    const int wayland_display_file_descriptor = wl_display_get_fd(wayland_display);
-    if (wayland_display_file_descriptor == -1) {
-        fprintf_error("Wayland idle event loop aborted: failed to get wayland display file descriptor\n");
-        return -1;
+        const int saved_errno = errno;
+        fprintf_error("Wayland idle event loop aborted: failed to create a timer file descriptor: %s\n",
+                      strerror(saved_errno));
+        goto run_wayland_idle_event_loop_cleanup;
     }
 
-    const int process_exit_wait_file_descriptor = open_pid_file_descriptor_for_process(pid);
-    int external_pid_fallback_check_timer_file_descriptor = -1;
+    const int wayland_display_file_descriptor = wl_display_get_fd(wayland_display);
+    if (wayland_display_file_descriptor == -1) {
+        fprintf_error("Wayland idle event loop aborted: failed to get Wayland display file descriptor\n");
+        goto run_wayland_idle_event_loop_cleanup;
+    }
+
+    process_exit_wait_file_descriptor = open_pid_file_descriptor_for_process(pid);
     if (process_exit_wait_file_descriptor == -1) {
-        fprintf_error("Failed to open file descriptor for pid %d: %s \n", pid, strerror(errno));
+        const int saved_errno = errno;
+        fprintf_error("Failed to open file descriptor for pid %d: %s\n", pid, strerror(saved_errno));
+
         if (external_pid != 0) {
             external_pid_fallback_check_timer_file_descriptor = create_periodic_timer_file_descriptor_every_ms(1000);
             if (external_pid_fallback_check_timer_file_descriptor == -1) {
-                fprintf_error("Failed to create periodic timer file descriptor for external pid fallback\n");
-                return -1;
+                const int timer_errno = errno;
+                fprintf_error("Failed to create periodic timer file descriptor for external pid fallback: %s\n",
+                              strerror(timer_errno));
+                goto run_wayland_idle_event_loop_cleanup;
             }
         }
     }
@@ -300,32 +225,44 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     struct pollfd poll_file_descriptors[4];
     int poll_file_descriptor_count = 0;
 
-    int wayland_poll_index = poll_file_descriptor_count++;
-    poll_file_descriptors[wayland_poll_index] = (struct pollfd){ .fd = wayland_display_file_descriptor, .events = POLLIN, .revents = 0 };
+    const int wayland_poll_index = poll_file_descriptor_count++;
+    poll_file_descriptors[wayland_poll_index] = (struct pollfd){
+            .fd = wayland_display_file_descriptor,
+            .events = POLLIN,
+            .revents = 0
+    };
 
-    int start_monitor_poll_index = poll_file_descriptor_count++;
-    poll_file_descriptors[start_monitor_poll_index] = (struct pollfd){ .fd = start_monitor_timer_file_descriptor, .events = POLLIN, .revents = 0 };
+    const int start_monitor_poll_index = poll_file_descriptor_count++;
+    poll_file_descriptors[start_monitor_poll_index] = (struct pollfd){
+            .fd = start_monitor_timer_file_descriptor,
+            .events = POLLIN,
+            .revents = 0
+    };
 
     int process_exit_poll_index = -1;
     if (process_exit_wait_file_descriptor >= 0) {
         process_exit_poll_index = poll_file_descriptor_count++;
-        poll_file_descriptors[process_exit_poll_index] = (struct pollfd){ .fd = process_exit_wait_file_descriptor, .events = POLLIN, .revents = 0 };
+        poll_file_descriptors[process_exit_poll_index] = (struct pollfd){
+                .fd = process_exit_wait_file_descriptor,
+                .events = POLLIN,
+                .revents = 0
+        };
     }
 
     int external_pid_fallback_poll_index = -1;
     if (external_pid_fallback_check_timer_file_descriptor >= 0) {
         external_pid_fallback_poll_index = poll_file_descriptor_count++;
         poll_file_descriptors[external_pid_fallback_poll_index] = (struct pollfd){
-                .fd = external_pid_fallback_check_timer_file_descriptor, .events = POLLIN, .revents = 0
+                .fd = external_pid_fallback_check_timer_file_descriptor,
+                .events = POLLIN,
+                .revents = 0
         };
     }
 
     while (1) {
         if (interruption_received) {
-            close(start_monitor_timer_file_descriptor);
-            if (process_exit_wait_file_descriptor >= 0) close(process_exit_wait_file_descriptor);
-            if (external_pid_fallback_check_timer_file_descriptor >= 0) close(external_pid_fallback_check_timer_file_descriptor);
-            return handle_interruption();
+            result = handle_interruption();
+            goto run_wayland_idle_event_loop_cleanup;
         }
 
         if (sigchld_received) {
@@ -333,25 +270,106 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
             exit_if_pid_has_finished(pid);
         }
 
-        wl_display_dispatch_pending(wayland_display);
-        wl_display_flush(wayland_display);
+        if (wl_display_dispatch_pending(wayland_display) < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
 
-        int poll_result = poll(poll_file_descriptors, poll_file_descriptor_count, -1);
+            const int saved_errno = errno;
+            fprintf_error("Wayland display dispatch_pending failed: %s\n", strerror(saved_errno));
+            fprintf_error("User will be considered idle to allow the command to finish.\n");
+            break;
+        }
+
+        if (wl_display_flush(wayland_display) < 0) {
+            if (errno == EAGAIN) {
+                wayland_flush_is_pending = 1;
+            } else if (errno == EINTR) {
+                continue;
+            } else {
+                const int saved_errno = errno;
+                fprintf_error("Wayland display flush failed: %s\n", strerror(saved_errno));
+                fprintf_error("User will be considered idle to allow the command to finish.\n");
+                break;
+            }
+        } else {
+            wayland_flush_is_pending = 0;
+        }
+
+        poll_file_descriptors[wayland_poll_index].events = POLLIN;
+        if (wayland_flush_is_pending) {
+            poll_file_descriptors[wayland_poll_index].events |= POLLOUT;
+        }
+
+        const int poll_result = poll(poll_file_descriptors, poll_file_descriptor_count, -1);
         if (poll_result < 0) {
             if (errno == EINTR) {
                 continue;
             }
-            fprintf_error("poll() failed: %s\n", strerror(errno));
-            return 1;
+
+            const int saved_errno = errno;
+            fprintf_error("poll() failed: %s\n", strerror(saved_errno));
+            result = 1;
+            goto run_wayland_idle_event_loop_cleanup;
         }
 
-        if (!monitoring_started && (poll_file_descriptors[start_monitor_poll_index].revents & POLLIN)) {
-            consume_timer_file_descriptor(start_monitor_timer_file_descriptor);
-            monitoring_started = 1;
+        if (poll_file_descriptors[wayland_poll_index].revents & POLLNVAL) {
+            fprintf_error("Wayland display file descriptor became invalid\n");
+            result = -1;
+            goto run_wayland_idle_event_loop_cleanup;
+        }
 
-            if (start_wayland_idle_notification_object(&wayland_idle_notification_listener) < 0) {
-                fprintf_error("Failed to create Wayland idle notification object, user will be considered idle.\n");
+        if (poll_file_descriptors[wayland_poll_index].revents & (POLLHUP | POLLERR)) {
+            fprintf_error("Wayland connection closed, user will be considered idle to allow the command to finish.\n");
+            break;
+        }
+
+        if (poll_file_descriptors[wayland_poll_index].revents & POLLOUT) {
+            if (wl_display_flush(wayland_display) < 0) {
+                if (errno == EAGAIN) {
+                    wayland_flush_is_pending = 1;
+                } else if (errno != EINTR) {
+                    const int saved_errno = errno;
+                    fprintf_error("Wayland display flush failed: %s\n", strerror(saved_errno));
+                    fprintf_error("User will be considered idle to allow the command to finish.\n");
+                    break;
+                }
             } else {
+                wayland_flush_is_pending = 0;
+            }
+        }
+
+        if (!monitoring_started && poll_file_descriptors[start_monitor_poll_index].fd >= 0) {
+            const short start_monitor_revents = poll_file_descriptors[start_monitor_poll_index].revents;
+
+            if (start_monitor_revents & POLLNVAL) {
+                fprintf_error("Start-monitor timer file descriptor became invalid\n");
+                result = -1;
+                goto run_wayland_idle_event_loop_cleanup;
+            }
+
+            if (start_monitor_revents & POLLERR) {
+                fprintf_error("Start-monitor timer file descriptor reported an error\n");
+                result = -1;
+                goto run_wayland_idle_event_loop_cleanup;
+            }
+
+            if (start_monitor_revents & POLLIN) {
+                if (consume_timer_file_descriptor_checked(start_monitor_timer_file_descriptor, "start-monitor") < 0) {
+                    result = -1;
+                    goto run_wayland_idle_event_loop_cleanup;
+                }
+
+                close_file_descriptor_if_open(&start_monitor_timer_file_descriptor, "start-monitor timer");
+                poll_file_descriptors[start_monitor_poll_index].fd = -1;
+
+                monitoring_started = 1;
+
+                if (start_wayland_idle_notification_object(&wayland_idle_notification_listener) < 0) {
+                    fprintf_error("Failed to create Wayland idle notification object, user will be considered idle.\n");
+                    break;
+                }
+
                 if (!command_paused) {
                     pause_command_recursively(pid);
                     command_paused = 1;
@@ -359,32 +377,73 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
             }
         }
 
-        if (process_exit_poll_index >= 0 && (poll_file_descriptors[process_exit_poll_index].revents & POLLIN)) {
-            exit_if_pid_has_finished(pid);
+        if (process_exit_poll_index >= 0) {
+            const short process_exit_revents = poll_file_descriptors[process_exit_poll_index].revents;
+
+            if (process_exit_revents & POLLNVAL) {
+                fprintf_error("Process-exit file descriptor became invalid\n");
+                result = -1;
+                goto run_wayland_idle_event_loop_cleanup;
+            }
+
+            if (process_exit_revents & (POLLIN | POLLHUP | POLLERR)) {
+                exit_if_pid_has_finished(pid);
+            }
         }
 
-        if (external_pid_fallback_poll_index >= 0 && (poll_file_descriptors[external_pid_fallback_poll_index].revents & POLLIN)) {
-            consume_timer_file_descriptor(external_pid_fallback_check_timer_file_descriptor);
-            exit_if_pid_has_finished(pid);
+        if (external_pid_fallback_poll_index >= 0) {
+            const short fallback_revents = poll_file_descriptors[external_pid_fallback_poll_index].revents;
+
+            if (fallback_revents & POLLNVAL) {
+                fprintf_error("External-pid fallback timer file descriptor became invalid\n");
+                result = -1;
+                goto run_wayland_idle_event_loop_cleanup;
+            }
+
+            if (fallback_revents & POLLERR) {
+                fprintf_error("External-pid fallback timer file descriptor reported an error\n");
+                result = -1;
+                goto run_wayland_idle_event_loop_cleanup;
+            }
+
+            if (fallback_revents & POLLIN) {
+                if (consume_timer_file_descriptor_checked(external_pid_fallback_check_timer_file_descriptor,
+                                                          "external-pid fallback") < 0) {
+                    result = -1;
+                    goto run_wayland_idle_event_loop_cleanup;
+                }
+
+                exit_if_pid_has_finished(pid);
+            }
         }
 
         if (poll_file_descriptors[wayland_poll_index].revents & POLLIN) {
-            int dispatch_result = wl_display_dispatch(wayland_display);
-            if (dispatch_result < 0 && errno != EINTR) {
-                fprintf_error("Wayland display dispatch failed: %s\n", strerror(errno));
+            const int dispatch_result = wl_display_dispatch(wayland_display);
+            if (dispatch_result < 0) {
+                if (errno == EINTR || errno == EAGAIN) {
+                    continue;
+                }
+
+                const int saved_errno = errno;
+                fprintf_error("Wayland display dispatch failed: %s\n", strerror(saved_errno));
                 fprintf_error("User will be considered idle to allow the command to finish.\n");
                 break;
             }
-        } else if (poll_file_descriptors[wayland_poll_index].revents & (POLLHUP | POLLERR)) {
-            fprintf_error("Wayland connection closed, user will be considered idle to allow the command to finish.\n");
-            break;
         }
     }
 
-    if (start_monitor_timer_file_descriptor >= 0) close(start_monitor_timer_file_descriptor);
-    if (process_exit_wait_file_descriptor >= 0) close(process_exit_wait_file_descriptor);
-    if (external_pid_fallback_check_timer_file_descriptor >= 0) close(external_pid_fallback_check_timer_file_descriptor);
+    close_file_descriptor_if_open(&start_monitor_timer_file_descriptor, "start-monitor timer");
+    close_file_descriptor_if_open(&process_exit_wait_file_descriptor, "process-exit");
+    close_file_descriptor_if_open(&external_pid_fallback_check_timer_file_descriptor, "external-pid fallback timer");
+
     return wait_for_pid_to_exit_checking_for_signals();
+
+run_wayland_idle_event_loop_cleanup:
+    close_file_descriptor_if_open(&start_monitor_timer_file_descriptor, "start-monitor timer");
+    close_file_descriptor_if_open(&process_exit_wait_file_descriptor, "process-exit");
+    close_file_descriptor_if_open(&external_pid_fallback_check_timer_file_descriptor, "external-pid fallback timer");
+
+    return result;
 }
 
 
@@ -476,7 +535,6 @@ int main(int argc, char *argv[]) {
 
     const int wayland_loop_result = try_monitor_wayland_idle_notify(run_wayland_idle_event_loop);
     if (wayland_loop_result == 0) {
-        //todo: other exit codes are also possible
         return 0;
     }
 
