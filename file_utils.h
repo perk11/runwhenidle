@@ -1,6 +1,7 @@
 #ifndef RUNWHENIDLE_FILE_UTILS_H
 #define RUNWHENIDLE_FILE_UTILS_H
 
+#include <stddef.h>
 #include <stdio.h>
 int file_is_socket(const char *path);
 int file_is_readable_regular_file(const char *path);
