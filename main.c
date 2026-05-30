@@ -368,8 +368,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
                 }
 
                 if (!command_paused) {
-                    pause_command_recursively(pid);
-                    command_paused = 1;
+                    pause_running_command_on_user_activity();
                 }
             }
         }
