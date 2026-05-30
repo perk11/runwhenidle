@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <asm-generic/errno-base.h>
 #include <sys/timerfd.h>
 
 #include "tty_utils.h"
