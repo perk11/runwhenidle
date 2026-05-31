@@ -141,7 +141,12 @@ static int find_best_x11_display_from_socket_dir(char *out_display, size_t out_d
             continue;
         }
 
-        int display_number = (int)strtol(digits, NULL, 10);
+        char *endptr;
+        long parsed = strtol(digits, &endptr, 10);
+        if (*endptr != '\0') {
+            continue;
+        }
+        int display_number = (int)parsed;
 
         char socket_path[PATH_MAX];
         snprintf(socket_path, sizeof(socket_path), "%s/%s", x11_socket_dir, entry->d_name);
