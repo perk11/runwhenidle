@@ -1,4 +1,5 @@
 #include <dirent.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -11,71 +12,110 @@
 #include "string_utils.h"
 
 int find_best_wayland_socket_in_runtime_dir(const char *runtime_dir,
-                                                   char *out_socket_path,
-                                                   size_t out_socket_path_size,
-                                                   char *out_socket_name,
-                                                   size_t out_socket_name_size) {
-    DIR *dir = opendir(runtime_dir);
-    if (!dir) {
+                                            char *out_socket_path,
+                                            size_t out_socket_path_size,
+                                            char *out_socket_name,
+                                            size_t out_socket_name_size) {
+    if (out_socket_path_size > 0) {
+        out_socket_path[0] = '\0';
+    }
+    if (out_socket_name && out_socket_name_size > 0) {
+        out_socket_name[0] = '\0';
+    }
+
+    DIR *directory_stream = opendir(runtime_dir);
+    if (!directory_stream) {
         return 0;
     }
 
-    int found = 0;
-    int best_numeric_suffix = INT_MAX;
-    char best_name[NAME_MAX + 1];
-    best_name[0] = '\0';
+    int has_found_valid_wayland_socket = 0;
+    int lowest_numeric_socket_suffix_found = INT_MAX;
+    char best_wayland_socket_name_found[NAME_MAX + 1];
+    best_wayland_socket_name_found[0] = '\0';
 
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strncmp(entry->d_name, "wayland-", 8) != 0) {
+    struct dirent *directory_entry;
+    while ((directory_entry = readdir(directory_stream)) != NULL) {
+        if (strncmp(directory_entry->d_name, "wayland-", 8) != 0) {
             continue;
         }
 
-        char full_path[PATH_MAX];
-        snprintf(full_path, sizeof(full_path), "%s/%s", runtime_dir, entry->d_name);
+        char absolute_socket_path_buffer[PATH_MAX];
+        int required_absolute_path_length = snprintf(absolute_socket_path_buffer,
+                                                     sizeof(absolute_socket_path_buffer),
+                                                     "%s/%s",
+                                                     runtime_dir,
+                                                     directory_entry->d_name);
 
-        if (!file_is_socket(full_path)) {
+        if (required_absolute_path_length < 0 || (size_t)required_absolute_path_length >= sizeof(absolute_socket_path_buffer)) {
             continue;
         }
 
-        int numeric_suffix = -1;
-        const char *suffix = entry->d_name + 8;
-        if (*suffix >= '0' && *suffix <= '9') {
-            char *endptr;
-            long val = strtol(suffix, &endptr, 10);
-            if (*endptr == '\0') {
-                numeric_suffix = (int)val;
+        if (!file_is_socket(absolute_socket_path_buffer)) {
+            continue;
+        }
+
+        int current_socket_numeric_suffix_value = -1;
+        const char *socket_name_suffix_pointer = directory_entry->d_name + 8;
+
+        if (*socket_name_suffix_pointer >= '0' && *socket_name_suffix_pointer <= '9') {
+            char *suffix_parsing_end_pointer;
+            errno = 0;
+            long parsed_numeric_suffix_value = strtol(socket_name_suffix_pointer, &suffix_parsing_end_pointer, 10);
+
+            if (*suffix_parsing_end_pointer == '\0' &&
+                errno != ERANGE &&
+                parsed_numeric_suffix_value >= 0 &&
+                parsed_numeric_suffix_value <= INT_MAX) {
+                current_socket_numeric_suffix_value = (int)parsed_numeric_suffix_value;
             }
         }
 
-        if (!found) {
-            found = 1;
-            best_numeric_suffix = (numeric_suffix >= 0) ? numeric_suffix : INT_MAX;
-            snprintf(best_name, sizeof(best_name), "%s", entry->d_name);
-            continue;
-        }
-
-        if (numeric_suffix >= 0 && numeric_suffix < best_numeric_suffix) {
-            best_numeric_suffix = numeric_suffix;
-            snprintf(best_name, sizeof(best_name), "%s", entry->d_name);
-            continue;
-        }
-
-        if (best_numeric_suffix == INT_MAX && numeric_suffix == -1) {
-            snprintf(best_name, sizeof(best_name), "%s", entry->d_name);
+        if (!has_found_valid_wayland_socket) {
+            has_found_valid_wayland_socket = 1;
+            lowest_numeric_socket_suffix_found = (current_socket_numeric_suffix_value >= 0) ? current_socket_numeric_suffix_value : INT_MAX;
+            snprintf(best_wayland_socket_name_found, sizeof(best_wayland_socket_name_found), "%s", directory_entry->d_name);
+        } else if (current_socket_numeric_suffix_value >= 0) {
+            if (lowest_numeric_socket_suffix_found == INT_MAX || current_socket_numeric_suffix_value < lowest_numeric_socket_suffix_found) {
+                lowest_numeric_socket_suffix_found = current_socket_numeric_suffix_value;
+                snprintf(best_wayland_socket_name_found, sizeof(best_wayland_socket_name_found), "%s", directory_entry->d_name);
+            }
+        } else if (lowest_numeric_socket_suffix_found == INT_MAX) {
+            if (strcmp(directory_entry->d_name, best_wayland_socket_name_found) < 0) {
+                snprintf(best_wayland_socket_name_found, sizeof(best_wayland_socket_name_found), "%s", directory_entry->d_name);
+            }
         }
     }
 
-    closedir(dir);
+    closedir(directory_stream);
 
-    if (!found) {
+    if (!has_found_valid_wayland_socket) {
         return 0;
     }
 
-    snprintf(out_socket_path, out_socket_path_size, "%s/%s", runtime_dir, best_name);
-    if (out_socket_name && out_socket_name_size > 0) {
-        snprintf(out_socket_name, out_socket_name_size, "%s", best_name);
+    int required_final_socket_path_length = snprintf(out_socket_path,
+                                                     out_socket_path_size,
+                                                     "%s/%s",
+                                                     runtime_dir,
+                                                     best_wayland_socket_name_found);
+
+    if (required_final_socket_path_length < 0 || (size_t)required_final_socket_path_length >= out_socket_path_size) {
+        out_socket_path[0] = '\0';
+        return 0;
     }
+
+    if (out_socket_name && out_socket_name_size > 0) {
+        int required_final_socket_name_length = snprintf(out_socket_name,
+                                                         out_socket_name_size,
+                                                         "%s",
+                                                         best_wayland_socket_name_found);
+
+        if (required_final_socket_name_length < 0 || (size_t)required_final_socket_name_length >= out_socket_name_size) {
+            out_socket_path[0] = '\0';
+            out_socket_name[0] = '\0';
+            return 0;
+        }
+    }
+
     return 1;
 }
 
