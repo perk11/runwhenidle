@@ -162,7 +162,14 @@ static void wayland_idle_notification_resumed(void *data, struct ext_idle_notifi
     }
 }
 
-int wait_for_pid_to_exit_checking_for_signals(void) {
+int resume_and_wait_for_pid_to_exit_checking_for_signals(void) {
+    if (command_paused) {
+        if (verbose) {
+            fprintf(stderr, "Since command was previously paused, we will try to resume it now to let it finish\n");
+        }
+        command_paused = 0;
+        resume_command_recursively(pid);
+    }
     while (1) {
         if (interruption_received) {
             return handle_interruption();
@@ -174,7 +181,6 @@ int wait_for_pid_to_exit_checking_for_signals(void) {
         sleep_for_milliseconds(POLLING_INTERVAL_WHEN_NOT_MONITORING_MS);
     }
 }
-
 const struct ext_idle_notification_v1_listener wayland_idle_notification_listener = {
     .idled = wayland_idle_notification_idled,
     .resumed = wayland_idle_notification_resumed
@@ -434,7 +440,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     if (verbose) {
         fprintf(stderr, "Wayland connection lost or loop finished.\n");
     }
-    return wait_for_pid_to_exit_checking_for_signals();
+    return resume_and_wait_for_pid_to_exit_checking_for_signals();
 
 run_wayland_idle_event_loop_cleanup:
     close_file_descriptor_if_open(&start_monitor_timer_file_descriptor, "start-monitor timer");
