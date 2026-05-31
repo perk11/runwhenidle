@@ -210,16 +210,18 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     process_exit_wait_file_descriptor = open_pid_file_descriptor_for_process(pid);
     if (process_exit_wait_file_descriptor == -1) {
         const int saved_errno = errno;
-        fprintf_error("Failed to open file descriptor for pid %d: %s\n", pid, strerror(saved_errno));
-
-        if (external_pid != 0) {
-            external_pid_fallback_check_timer_file_descriptor = create_periodic_timer_file_descriptor_every_ms(1000);
-            if (external_pid_fallback_check_timer_file_descriptor == -1) {
-                const int timer_errno = errno;
-                fprintf_error("Failed to create periodic timer file descriptor for external pid fallback: %s\n",
-                              strerror(timer_errno));
-                goto run_wayland_idle_event_loop_cleanup;
-            }
+        fprintf_error(
+            "Failed to open file descriptor for pid %d: %s, falling back to a timer every %sms for checking if process has exited\n",
+            pid,
+            strerror(saved_errno),
+            POLLING_INTERVAL_MS
+        );
+        external_pid_fallback_check_timer_file_descriptor = create_periodic_timer_file_descriptor_every_ms(POLLING_INTERVAL_MS);
+        if (external_pid_fallback_check_timer_file_descriptor == -1) {
+            const int timer_errno = errno;
+            fprintf_error("Failed to create periodic timer file descriptor for external pid fallback: %s\n",
+                          strerror(timer_errno));
+            goto run_wayland_idle_event_loop_cleanup;
         }
     }
 
@@ -262,6 +264,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     //The child could exit after kill(pid, 0) succeeded but before SIGCHLD is delivered/observed
     exit_if_pid_has_finished(pid);
 
+    if (debug) fprintf(stderr, "Wayland idle event loop started\n");
     while (1) {
         if (interruption_received) {
             result = handle_interruption();
@@ -303,8 +306,22 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
         if (wayland_flush_is_pending) {
             poll_file_descriptors[wayland_poll_index].events |= POLLOUT;
         }
-
+        if (debug) {
+            fprintf(stderr, "Wayland display file descriptor: %d, events: %d\n", wayland_display_file_descriptor,
+                    poll_file_descriptors[wayland_poll_index].events);
+            fprintf(stderr, "Start-monitor timer file descriptor: %d, events: %d\n",
+                    start_monitor_timer_file_descriptor, poll_file_descriptors[start_monitor_poll_index].events);
+            if (process_exit_poll_index >= 0) {
+                fprintf(stderr, "Process-exit file descriptor: %d, events: %d\n", process_exit_wait_file_descriptor,
+                        poll_file_descriptors[process_exit_poll_index].events);
+            }
+            if (external_pid_fallback_poll_index >= 0) {
+                fprintf(stderr, "External-pid fallback timer file descriptor: %d, events: %d\n", external_pid_fallback_check_timer_file_descriptor,
+                        poll_file_descriptors[external_pid_fallback_poll_index].events);
+            }
+        }
         const int poll_result = poll(poll_file_descriptors, poll_file_descriptor_count, -1);
+        if (debug) fprintf(stderr, "poll() returned %d\n", poll_result);
         if (poll_result < 0) {
             if (errno == EINTR) {
                 continue;
