@@ -7,9 +7,12 @@
 #include <errno.h>
 #include <poll.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/signalfd.h>
 
 #include <wayland-client.h>
 
+#include <X11/Xlib.h>
 #include <X11/extensions/scrnsaver.h>
 
 #include "environment_guessing.h"
@@ -38,7 +41,7 @@ long start_monitor_after_ms = 300;
 long unsigned user_idle_timeout_ms = 300000;
 const long long POLLING_INTERVAL_MS = 1000;
 const long long POLLING_INTERVAL_BEFORE_STARTING_MONITORING_MS = 100;
-const long long POLLING_INTERVAL_WHEN_NOT_MONITORING_MS = 100;
+const int POLLING_INTERVAL_WHEN_NOT_MONITORING_MS = 100;
 const char *pause_method_string[] = {
         //order must match order in pause_method enum
         [PAUSE_METHOD_SIGTSTP] = "SIGTSTP",
@@ -50,10 +53,24 @@ Display *x_display;
 XScreenSaverInfo *xscreensaver_info;
 const long unsigned IDLE_TIME_NOT_AVAILABLE_VALUE = ULONG_MAX;
 
-volatile sig_atomic_t interruption_received = 0;
-volatile sig_atomic_t command_paused = 0;
-volatile sig_atomic_t sigchld_received = 0;
+int interruption_received = 0;
+int command_paused = 0;
+int sigchld_received = 0;
+int signal_fd = -1;
 pid_t pid;
+
+void process_signalfd() {
+    struct signalfd_siginfo fdsi;
+    ssize_t s;
+    // Read all pending signals from the non-blocking file descriptor
+    while ((s = read(signal_fd, &fdsi, sizeof(struct signalfd_siginfo))) == sizeof(struct signalfd_siginfo)) {
+        if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
+            interruption_received = fdsi.ssi_signo;
+        } else if (fdsi.ssi_signo == SIGCHLD) {
+            sigchld_received = 1;
+        }
+    }
+}
 
 long unsigned query_user_idle_time() {
     if (xscreensaver_is_available) {
@@ -65,6 +82,32 @@ long unsigned query_user_idle_time() {
 }
 
 int handle_interruption() {
+    int signal_number_that_caused_interruption = interruption_received;
+
+    if (signal_number_that_caused_interruption == SIGINT) {
+        if (external_pid) {
+            if (!quiet) {
+                printf("Received SIGINT\n");
+            }
+        } else {
+            if (!quiet) {
+                printf("Received SIGINT, sending SIGINT to the command and waiting for it to finish\n");
+            }
+            send_signal_to_pid(pid, signal_number_that_caused_interruption, "SIGINT");
+        }
+    } else if (signal_number_that_caused_interruption == SIGTERM) {
+        if (external_pid) {
+            if (!quiet) {
+                printf("Received SIGTERM\n");
+            }
+        } else {
+            if (!quiet) {
+                printf("Received SIGTERM, sending SIGTERM to the command and waiting for it to finish\n");
+            }
+            send_signal_to_pid(pid, signal_number_that_caused_interruption, "SIGTERM");
+        }
+    }
+
     if (command_paused) {
         if (verbose) {
             fprintf(stderr, "Since command was previously paused, we will try to resume it now");
@@ -83,40 +126,6 @@ int handle_interruption() {
     return wait_for_pid_to_exit_synchronously(pid);
 }
 
-void sigint_handler(int signum) {
-    if (external_pid) {
-        if (!quiet) {
-            printf("Received SIGINT\n");
-        }
-    } else {
-        if (!quiet) {
-            printf("Received SIGINT, sending SIGINT to the command and waiting for it to finish\n");
-        }
-        send_signal_to_pid(pid, signum, "SIGINT");
-    }
-
-    interruption_received = 1;
-}
-
-void sigterm_handler(int signum) {
-    if (external_pid) {
-        if (!quiet) {
-            printf("Received SIGTERM\n");
-        }
-    } else {
-        if (!quiet) {
-            printf("Received SIGTERM, sending SIGTERM to the command and waiting for it to finish\n");
-        }
-        send_signal_to_pid(pid, signum, "SIGTERM");
-    }
-
-    interruption_received = 1;
-}
-
-void sigchld_handler(int signum) {
-    (void)signum;
-    sigchld_received = 1;
-}
 static void resume_paused_command_on_user_idle(void) {
     if (!quiet) {
         printf("Lack of user activity detected. ");
@@ -131,6 +140,7 @@ static void pause_running_command_on_user_activity(void) {
     if (debug) fprintf(stderr, "Command paused\n");
     command_paused = 1;
 }
+
 static void wayland_idle_notification_idled(void *data, struct ext_idle_notification_v1 *notification) {
     (void)data;
     (void)notification;
@@ -162,6 +172,14 @@ static void wayland_idle_notification_resumed(void *data, struct ext_idle_notifi
     }
 }
 
+void sleep_for_ms_with_signalfd(struct pollfd pfd, int sleep_time_ms) {
+    if (poll(&pfd, 1, sleep_time_ms) > 0) {
+        if (pfd.revents & POLLIN) {
+            process_signalfd();
+        }
+    }
+}
+
 int resume_and_wait_for_pid_to_exit_checking_for_signals(void) {
     if (command_paused) {
         if (verbose) {
@@ -170,6 +188,9 @@ int resume_and_wait_for_pid_to_exit_checking_for_signals(void) {
         command_paused = 0;
         resume_command_recursively(pid);
     }
+
+    struct pollfd pfd = { .fd = signal_fd, .events = POLLIN };
+
     while (1) {
         if (interruption_received) {
             return handle_interruption();
@@ -178,9 +199,12 @@ int resume_and_wait_for_pid_to_exit_checking_for_signals(void) {
             sigchld_received = 0;
         }
         exit_if_pid_has_finished(pid);
-        sleep_for_milliseconds(POLLING_INTERVAL_WHEN_NOT_MONITORING_MS);
+
+        // Use poll on signalfd to wake up instantly on signal
+        sleep_for_ms_with_signalfd(pfd, POLLING_INTERVAL_WHEN_NOT_MONITORING_MS);
     }
 }
+
 const struct ext_idle_notification_v1_listener wayland_idle_notification_listener = {
     .idled = wayland_idle_notification_idled,
     .resumed = wayland_idle_notification_resumed
@@ -225,7 +249,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
         }
     }
 
-    struct pollfd poll_file_descriptors[4];
+    struct pollfd poll_file_descriptors[5];
     int poll_file_descriptor_count = 0;
 
     const int wayland_poll_index = poll_file_descriptor_count++;
@@ -238,6 +262,13 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     const int start_monitor_poll_index = poll_file_descriptor_count++;
     poll_file_descriptors[start_monitor_poll_index] = (struct pollfd){
             .fd = start_monitor_timer_file_descriptor,
+            .events = POLLIN,
+            .revents = 0
+    };
+
+    const int signal_poll_index = poll_file_descriptor_count++;
+    poll_file_descriptors[signal_poll_index] = (struct pollfd){
+            .fd = signal_fd,
             .events = POLLIN,
             .revents = 0
     };
@@ -306,20 +337,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
         if (wayland_flush_is_pending) {
             poll_file_descriptors[wayland_poll_index].events |= POLLOUT;
         }
-        if (debug) {
-            fprintf(stderr, "Wayland display file descriptor: %d, events: %d\n", wayland_display_file_descriptor,
-                    poll_file_descriptors[wayland_poll_index].events);
-            fprintf(stderr, "Start-monitor timer file descriptor: %d, events: %d\n",
-                    start_monitor_timer_file_descriptor, poll_file_descriptors[start_monitor_poll_index].events);
-            if (process_exit_poll_index >= 0) {
-                fprintf(stderr, "Process-exit file descriptor: %d, events: %d\n", process_exit_wait_file_descriptor,
-                        poll_file_descriptors[process_exit_poll_index].events);
-            }
-            if (external_pid_fallback_poll_index >= 0) {
-                fprintf(stderr, "External-pid fallback timer file descriptor: %d, events: %d\n", external_pid_fallback_check_timer_file_descriptor,
-                        poll_file_descriptors[external_pid_fallback_poll_index].events);
-            }
-        }
+
         const int poll_result = poll(poll_file_descriptors, poll_file_descriptor_count, -1);
         if (debug) fprintf(stderr, "poll() returned %d\n", poll_result);
         if (poll_result < 0) {
@@ -331,6 +349,11 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
             fprintf_error("poll() failed: %s\n", strerror(saved_errno));
             result = -1;
             goto run_wayland_idle_event_loop_cleanup;
+        }
+
+        // Check if we received signals via signalfd
+        if (poll_file_descriptors[signal_poll_index].revents & POLLIN) {
+            process_signalfd();
         }
 
         if (poll_file_descriptors[wayland_poll_index].revents & POLLNVAL) {
@@ -467,7 +490,6 @@ run_wayland_idle_event_loop_cleanup:
     return result;
 }
 
-
 static long long pause_or_resume_command_depending_on_user_activity(
         long long sleep_time_ms,
         unsigned long user_idle_time_ms) {
@@ -528,8 +550,27 @@ static long long pause_or_resume_command_depending_on_user_activity(
     }
     return sleep_time_ms;
 }
+
 int main(int argc, char *argv[]) {
     parse_command_line_arguments(argc, argv);
+
+    // Block standard signals so we can handle them via signalfd instead
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGTERM);
+    sigaddset(&mask, SIGCHLD);
+
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) == -1) {
+        fprintf_error("Failed to block signals for signalfd\n");
+        exit(1);
+    }
+
+    signal_fd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
+    if (signal_fd == -1) {
+        fprintf_error("Failed to create signalfd\n");
+        exit(1);
+    }
 
     if (external_pid == 0) {
         pid = run_shell_command(shell_command_to_run);
@@ -542,14 +583,11 @@ int main(int argc, char *argv[]) {
     }
     free(shell_command_to_run);
 
-    signal(SIGINT, sigint_handler);
-    signal(SIGTERM, sigterm_handler);
-    signal(SIGCHLD, sigchld_handler);
-
     best_effort_infer_graphical_session_environment_if_missing(verbose);
 
     const int wayland_loop_result = try_monitor_wayland_idle_notify(run_wayland_idle_event_loop);
     if (wayland_loop_result >= 0) {
+        close(signal_fd);
         return wayland_loop_result;
     }
 
@@ -585,9 +623,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    struct pollfd pfd = { .fd = signal_fd, .events = POLLIN };
+
     while (1) {
         if (interruption_received) {
-            return handle_interruption();
+            int result_from_interruption = handle_interruption();
+            if (xscreensaver_is_available && xscreensaver_info) {
+                XFree(xscreensaver_info);
+            }
+            if (x_display) {
+                XCloseDisplay(x_display);
+            }
+            close(signal_fd);
+            return result_from_interruption;
         }
         if (sigchld_received) {
             sigchld_received = 0;
@@ -616,6 +664,12 @@ int main(int argc, char *argv[]) {
                 user_idle_time_ms);
         }
         if (debug) fprintf(stderr, "Sleeping for %lldms\n", sleep_time_ms);
-        sleep_for_milliseconds(sleep_time_ms);
+        int sleep_time_ms_int;
+        if (sleep_time_ms > INT_MAX) {
+            sleep_time_ms_int = INT_MAX;
+        } else {
+            sleep_time_ms_int = (int) sleep_time_ms;
+        }
+        sleep_for_ms_with_signalfd(pfd, sleep_time_ms_int);
     }
 }
