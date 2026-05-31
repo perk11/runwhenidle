@@ -24,7 +24,7 @@
 #include "wayland.h"
 
 #ifndef VERSION
-#define VERSION 'unkown'
+#define VERSION "unknown"
 #endif
 
 char *shell_command_to_run;
