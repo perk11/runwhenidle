@@ -83,6 +83,12 @@ static int try_initialize_wayland_idle_backend(const struct wl_registry_listener
     wl_display_roundtrip(wayland_display);
 
     if (wayland_seat == NULL || wayland_idle_notifier == NULL) {
+        if (wayland_idle_notifier) {
+            ext_idle_notifier_v1_destroy(wayland_idle_notifier);
+        }
+        if (wayland_seat) {
+            wl_seat_destroy(wayland_seat);
+        }
         wl_registry_destroy(wayland_registry);
         wayland_registry = NULL;
         wl_display_disconnect(wayland_display);
