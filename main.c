@@ -172,9 +172,9 @@ static void wayland_idle_notification_resumed(void *data, struct ext_idle_notifi
     }
 }
 
-void sleep_for_ms_with_signalfd(struct pollfd pfd, int sleep_time_ms) {
-    if (poll(&pfd, 1, sleep_time_ms) > 0) {
-        if (pfd.revents & POLLIN) {
+void sleep_for_ms_with_signalfd(struct pollfd* pfd, int sleep_time_ms) {
+    if (poll(pfd, 1, sleep_time_ms) > 0) {
+        if (pfd->revents & POLLIN) {
             process_signalfd();
         }
     }
@@ -201,7 +201,7 @@ int resume_and_wait_for_pid_to_exit_checking_for_signals(void) {
         exit_if_pid_has_finished(pid);
 
         // Use poll on signalfd to wake up instantly on signal
-        sleep_for_ms_with_signalfd(pfd, POLLING_INTERVAL_WHEN_NOT_MONITORING_MS);
+        sleep_for_ms_with_signalfd(&pfd, POLLING_INTERVAL_WHEN_NOT_MONITORING_MS);
     }
 }
 
@@ -235,7 +235,7 @@ int run_wayland_idle_event_loop(struct wl_display *wayland_display) {
     if (process_exit_wait_file_descriptor == -1) {
         const int saved_errno = errno;
         fprintf_error(
-            "Failed to open file descriptor for pid %d: %s, falling back to a timer every %sms for checking if process has exited\n",
+            "Failed to open file descriptor for pid %d: %s, falling back to a timer every %lldms for checking if process has exited\n",
             pid,
             strerror(saved_errno),
             POLLING_INTERVAL_MS
@@ -606,7 +606,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!xscreensaver_is_available) {
-        fprintf_error("No available method for detecting user idle time on the system, user will be considered always idle to allow the command to finish.\n");
+        fprintf_error("No available method for detecting user idle time on the system, the command will not be paused.\n");
     }
 
     struct timespec time_when_command_started;
@@ -670,6 +670,6 @@ int main(int argc, char *argv[]) {
         } else {
             sleep_time_ms_int = (int) sleep_time_ms;
         }
-        sleep_for_ms_with_signalfd(pfd, sleep_time_ms_int);
+        sleep_for_ms_with_signalfd(&pfd, sleep_time_ms_int);
     }
 }
