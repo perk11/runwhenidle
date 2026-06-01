@@ -153,7 +153,11 @@ static void wayland_idle_notification_idled(void *data, struct ext_idle_notifica
         fprintf(stderr, "Wayland idle: idled()\n");
     }
 
-    resume_paused_command_on_user_idle();
+    if (command_paused) {
+        resume_paused_command_on_user_idle();
+    } else if (debug) {
+        fprintf(stderr, "Command is not paused, not doing anything\n");
+    }
 }
 
 static void wayland_idle_notification_resumed(void *data, struct ext_idle_notification_v1 *notification) {
