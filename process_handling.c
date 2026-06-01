@@ -24,6 +24,12 @@ pid_t run_shell_command(const char *shell_command_to_run) {
         exit(1);
     } else if (pid == 0) {
         // Child process
+        sigset_t empty_set;
+        sigemptyset(&empty_set);
+        if (sigprocmask(SIG_SETMASK, &empty_set, NULL) == -1) {
+            perror("sigprocmask");
+            exit(1);
+        }
         execl("/bin/sh", "sh", "-c", shell_command_to_run, (char *) NULL);
         perror("execl");
         exit(1);
