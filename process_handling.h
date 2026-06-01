@@ -65,4 +65,6 @@ int wait_for_pid_to_exit_synchronously(int pid);
  */
 void exit_if_pid_has_finished(pid_t pid);
 
+int open_pid_file_descriptor_for_process(pid_t process_id);
+
 #endif //RUNWHENIDLE_PROCESS_HANDLING_H

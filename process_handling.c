@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <dirent.h>
 
@@ -23,6 +24,12 @@ pid_t run_shell_command(const char *shell_command_to_run) {
         exit(1);
     } else if (pid == 0) {
         // Child process
+        sigset_t empty_set;
+        sigemptyset(&empty_set);
+        if (sigprocmask(SIG_SETMASK, &empty_set, NULL) == -1) {
+            perror("sigprocmask");
+            exit(1);
+        }
         execl("/bin/sh", "sh", "-c", shell_command_to_run, (char *) NULL);
         perror("execl");
         exit(1);
@@ -85,7 +92,8 @@ pid_t read_parent_process_id(pid_t process_id) {
     ;
     char file_contents[MAX_STAT_FILE_READ_LENGTH];
     if (!fgets(file_contents, MAX_STAT_FILE_READ_LENGTH, stat_file)) {
-        fprintf_error("Failed to read from %s\n", stat_file);
+        fprintf_error("Failed to read from %s\n", stat_file_path);
+        fclose(stat_file);
         return 0;
     }
     fclose(stat_file);
@@ -290,4 +298,16 @@ void exit_if_pid_has_finished(pid_t pid) {
         }
         exit(exit_code);
     }
+}
+
+int open_pid_file_descriptor_for_process(pid_t process_id) {
+#if defined(SYS_pidfd_open)
+    return (int)syscall(SYS_pidfd_open, process_id, 0);
+#elif defined(__NR_pidfd_open)
+    return (int)syscall(__NR_pidfd_open, process_id, 0);
+#else
+    (void)process_id;
+    errno = ENOSYS;
+    return -1;
+#endif
 }

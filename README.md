@@ -31,8 +31,12 @@ always handled by the OS.
 
 ## Under the Hood: How runwhenidle Controls Processes Based on User Activity
 
-runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened.
-Therefore, running X server is required. Wayland is not currently supported.
+
+### Wayland
+On Wayland ext_idle_notification_v1 is used. You will need to compile from source until a release is available.
+
+### X11
+On X11 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened.
 When user is active, these checks happen as infrequently as possible to satisfy the desired inactivity timeout 
 (default - every 5 minutes). When user is inactive, these checks happen once per second, to allow to restore
 the system responsiveness quickly.
@@ -58,7 +62,7 @@ Other Distros: You will need to compile runwhenidle yourself.
 
 ## Compiling
 
-Make sure you have `gcc`, `make`, `git` and `libxss-dev` installed. Run `make release`. This should produce a binary
+Make sure you have `gcc`, `make`, `git`, `libxss-dev` and `libwayland-dev` installed. Run `make release`. This should produce a binary
 file `runwhenidle` in the project directory.
 
 If you want to install it system-wide, run `sudo make install` or simply `sudo cp ./runwhenidle /usr/bin`.
@@ -83,9 +87,7 @@ If you want to install it system-wide, run `sudo make install` or simply `sudo c
 
 ### Known issues
 
-1. Wayland support. runwhenidle currently doesn't work without XScreenSaver, but Wayland support should be possible and
-   is planned (at least for the DEs supporting ext-idle-notify, which now both Gnome and KDE support).
-2. When monitoring an existing pid, once it gets paused, it gets detached from the terminal it was in.
+1. When monitoring an existing pid, once it gets paused, it gets detached from the terminal it was in.
    Running "fg" command could be a workaround to get it reattached, but it is required after every pause.
 
 ### Building Ubuntu/Debian package

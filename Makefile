@@ -1,12 +1,12 @@
 TARGET_EXEC := runwhenidle
-LDLIBS=-lXss -lX11
+LDLIBS=-lXss -lX11 -lwayland-client
 CC=gcc
 ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
-SOURCES = time_utils.c sleep_utils.c tty_utils.c process_handling.c arguments_parsing.c main.c
+SOURCES = time_utils.c sleep_utils.c tty_utils.c descriptor_utils.c file_utils.c string_utils.c process_handling.c arguments_parsing.c ext-idle-notify-v1-protocol.c environment_guessing.c wayland.c main.c
 OBJECTS = $(SOURCES:.c=.o)
-CCFLAGS = -Werror=all
+CCFLAGS = -Werror=all -std=gnu17
 all: executable
 
 release: CCFLAGS += -O3
@@ -18,7 +18,7 @@ debug: executable
 executable: CCFLAGS += -DVERSION=\"$(shell git describe --tags 2>/dev/null || (echo -n "0.0-dev-" && git rev-parse HEAD))\"
 
 %.o: %.c
-	$(CC) $(CCFLAGS) -c $< -o $@ $(LDFLAGS) $(LDLIBS)
+	$(CC) $(CCFLAGS) -c $< -o $@
 
 executable: $(OBJECTS)
 	$(CC) $(CCFLAGS) $(OBJECTS) -o $(TARGET_EXEC) $(LDFLAGS) $(LDLIBS)
