@@ -31,15 +31,7 @@ always handled by the OS.
 
 ## Under the Hood: How runwhenidle Controls Processes Based on User Activity
 
-
-### Wayland
-On Wayland ext_idle_notification_v1 is used. You will need to compile from source until a release is available.
-
-### X11
-On X11 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened.
-When user is active, these checks happen as infrequently as possible to satisfy the desired inactivity timeout 
-(default - every 5 minutes). When user is inactive, these checks happen once per second, to allow to restore
-the system responsiveness quickly.
+### Pausing and resuming
 
 When runwhenidle determines that the user is active, it will send SIGSTOP (or optionally SIGTSTP) to the process
 and all its child processes. When the user activity stops, runwhenidle resumes the process by sending it and all 
@@ -50,6 +42,25 @@ If runwhenidle was used to run a command (i.e. `--pid` parameter was not used) a
 signal (SIGINT or SIGTERM), it will resume the process it is running if it is currently paused, and then sned the
 same signal to it to allow the process to handle the signal. runwhenidle then will stop checking for user activity 
 and will wait for the process to exit.
+
+### Wayland
+On Wayland ext_idle_notification_v1 is used. This should work on any compsitor supporting it, but only tested it on KWin so far.
+As of 2026-06-09, the following composer support this Wayland extension:
+<img width="1859" height="499" alt="image" src="https://github.com/user-attachments/assets/95753c47-ef53-408e-a583-dbf98a2eda53" />
+
+### X11
+On X11 runwhenidle uses XScreenSaverQueryInfo() to check when last user activity happened.
+When user is active, these checks happen as infrequently as possible to satisfy the desired inactivity timeout 
+(default - every 5 minutes). When user is inactive, these checks happen once per second, to allow to restore
+the system responsiveness quickly.
+
+## Environment detection
+
+runwhenidle will attempt to run using ext_idle_notificaition_v1, if it's not available, it will use X11, if that is also not available, 
+it will display an error and will let the command continue without interruptions.
+
+If WAYLAND_DISPLAY, XDG_RUNTIME_DIR, DISPLAY env variables do not exist, runwhenidle will try to guess their values.
+This makes it possible for it to work if ran from e.g. cron, both on Wayland and X11.
 
 ## Installation
 
