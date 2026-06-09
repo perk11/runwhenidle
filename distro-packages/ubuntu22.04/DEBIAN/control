@@ -1,7 +1,7 @@
 Package: runwhenidle
 Version: $VERSION
 Architecture: amd64
-Depends: libc6 (>= 2.34), libx11-6, libxss1
+Depends: libc6 (>= 2.34), libx11-6, libxss1, libwayland-client0
 Maintainer: Konstantin Pereiaslov <perk11@perk11.info>
 Description: runwhenidle runs a computationally or IO-intensive program when user is not in front of the computer, pausing it once the user is back, resuming once the user left, often without requiring adaptation from the program being ran.
  runwhenidle runs a command given to it, pauses it if the user is active by sending SIGTSTP to the command,

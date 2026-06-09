@@ -11,6 +11,7 @@ RUN set -ex \
     fakeroot \
     dpkg-dev \
     libxss-dev \
+    libwayland-dev \
     git \
     && apt-get clean \
     && rm -rf /tmp/* /var/tmp/*
