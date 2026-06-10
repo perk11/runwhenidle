@@ -1,5 +1,0 @@
-Here are the planned changes:
-
-* Look more into Wayland support.
-* ?Test coverage?
-* Look at other types of limiting the process (CPU, IO limiting) when not idle.
